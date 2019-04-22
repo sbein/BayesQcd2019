@@ -15,8 +15,9 @@ epsi = "#scale[1.3]{#font[122]{e}}"
 epsilon = 0.0001
 
 binning = {}
-binning['Met']=[50,0,500]
+binning['Met']=[95,0,950]
 binning['HardMet']=binning['Met']
+binning['MetSignificance']=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 4.0, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 5.0, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 6.0, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9, 7.0, 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8, 7.9, 8.0, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8, 8.9, 9.0, 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 9.8, 9.9, 10.0, 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8, 10.9, 11.0, 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8, 11.9, 12.0]
 binning['NJets']=[10,0,10]
 binning['NLeptons']=[5,0,5]
 binning['NElectrons']=binning['NLeptons']
@@ -38,13 +39,19 @@ binning['Track1MassFromDedx'] = [25,0,1000]
 binning['BinNumber'] = [34,0,34]
 binning['MinDeltaPhi'] = binning['DPhi1']
 
+binningUser = dict(binning)
+binningUser['HardMet'] = [30,20,320]
+binningUser['HardMet'] = [15,0,300]
+#binningUser['HardMet'] = [30,20,920]
+
 binning_templates = {}
 binning_templates['HardMet']=[300,0,600]
 binning_templates['HardMet']=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,102,104,106,108,110,112,114,116,118,120,122,124,126,128,130,132,134,136,138,140,142,144,146,148,150,155,160,165,170,175,180,185,190,195,200,220,240,260,280,300,400,500,800]
 binning_templates['Met']=binning_templates['HardMet']
+binning_templates['MetSignificance']=binning['MetSignificance']
 binning_templates['Ht']=[0,300,500,700,1000,1500,2000,10000]
 binning_templates['Ht']=[0,200,300,500,700,1000,1500,2000,10000]#NOV2016 removed "400"
-binning_templates['Ht']=[0,10000]# in delphes, no apparent dependence of gen-MHT on HT
+binning_templates['Ht']=[1,0,10000]# in delphes, no apparent dependence of gen-MHT on HT
 binning_templates['St']=binning['Ht']
 binning_templates['NJets']=[10,0,10]
 binning_templates['BTags']=[0,1,2,5]
@@ -293,7 +300,7 @@ def stamp(lumi='35.9', showlumi = False, WorkInProgress = True):
 	tl.SetTextFont(regularfont)
 	tl.SetTextSize(0.81*tl.GetTextSize())    
 	thingy = ''
-	if showlumi: thingy+='#sqrt{s}=13 TeV, L = '+str(lumi)+' fb^{-1}'
+	if showlumi: thingy+='#sqrt{s}=14 TeV, L = '+str(lumi)+' fb^{-1}'
 	xthing = 0.6202
 	if not showlumi: xthing+=0.13
 	tl.DrawLatex(xthing,0.915,thingy)
@@ -311,7 +318,7 @@ def stamp2(lumi='35.9', showlumi = False):
 	tl.SetTextFont(regularfont)
 	tl.SetTextSize(0.81*tl.GetTextSize())    
 	thingy = ''
-	if showlumi: thingy+='#sqrt{s}=13 TeV, L = '+str(lumi)+' fb^{-1}'
+	if showlumi: thingy+='#sqrt{s}=14 TeV, L = '+str(lumi)+' fb^{-1}'
 	xthing = 0.6202
 	if not showlumi: xthing+=0.13
 	tl.DrawLatex(xthing,0.91,thingy)
@@ -401,7 +408,7 @@ def getLeadingBJet(RecoJets, CsvVec, BTAG_CSV):
 '''
 
 
-def FabDraw(cGold,leg,hObserved,hComponents,datamc='mc',lumi=35.9, title = '', LinearScale=False, fractionthing='(bkg-obs)/obs'):
+def FabDraw(cGold,leg,hObserved,hComponents,datamc='mc',lumi='arbitrary', title = '', LinearScale=False, fractionthing='(bkg-obs)/obs'):
 	cGold.cd()
 	pad1 = TPad("pad1", "pad1", 0, 0.4, 1, 1.0)
 	pad1.SetBottomMargin(0.0)
@@ -633,15 +640,15 @@ def FabDrawSystyRatio(cGold,leg,hObserved,hComponents,datamc='mc',lumi=35.9, tit
 	
 	return hRatio, [histoMethodFracErrorNom, histoMethodFracErrorUp, histoMethodFracErrorDown, hComponentsUp, hComponentsDown]
 	
-def stampFab(lumi,datamc='MC'):
+def stampFab(lumi = 'arbitrary',datamc='MC'):
 	tl.SetTextFont(cmsTextFont)
 	tl.SetTextSize(1.6*tl.GetTextSize())
 	tl.DrawLatex(0.152,0.82, 'Delphes')
 	tl.SetTextFont(extraTextFont)
 	tl.DrawLatex(0.14,0.74, ('MC' in datamc)*' simulation')
 	tl.SetTextFont(regularfont)
-	if lumi=='': tl.DrawLatex(0.62,0.82,'#sqrt{s} = 13 TeV')
-	else: tl.DrawLatex(0.5,0.82,'#sqrt{s} = 13 TeV, L = '+str(lumi)+' fb^{-1}')
+	if lumi=='': tl.DrawLatex(0.62,0.82,'#sqrt{s} = 14 TeV')
+	else: tl.DrawLatex(0.5,0.82,'#sqrt{s} = 14 TeV, L = '+str(lumi)+' fb^{-1}')
 	#tl.DrawLatex(0.64,0.82,'#sqrt{s} = 13 TeV')#, L = '+str(lumi)+' fb^{-1}')	
 	tl.SetTextSize(tl.GetTextSize()/1.6)
 	

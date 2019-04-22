@@ -5,12 +5,18 @@ from glob import glob
 
 
 MetConstraintName = 'HardMetPt'
+#MetConstraintName = 'MetSignificance'
+
+mettyobject_code_dict = {}
+mettyobject_code_dict['HardMetPt'] = 0
+mettyobject_code_dict['MetSignificance'] = 1
+mettyobject_code = mettyobject_code_dict[MetConstraintName]
 
 ###stuff that would be nice in a config file
-#binPt = [0,8,10,15,20,25,30,35,40,50,70,100,150,200,300,400,500,700,1000,10000]
-binPt = [0,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,44,48,52,56,60,66,72,78,84,90,100,110,120,130,140,150,160,170,180,190,200,220,240,260,280,300,330,360,390,420,450,500,550,600,650,700,750,800,900,1000,10000]
+binPt = [0,8,10,15,20,25,30,35,40,50,70,100,150,200,300,400,500,700,1000,10000]
+#binPt = [0,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,44,48,52,56,60,66,72,78,84,90,100,110,120,130,140,150,160,170,180,190,200,220,240,260,280,300,330,360,390,420,450,500,550,600,650,700,750,800,900,1000,10000]
 binEta = [0,0.4,0.8,1.2,1.6,2.0,2.5,6.0]#using this march 7 2017
-binHt = [0,10000,10000]
+binHt = [0,10000]
 
 ##load in delphes libraries to access input collections:
 gSystem.Load("/nfs/dust/cms/user/beinsam/RebalanceAndSmear/CMSSW_10_1_0/src/SampleProduction/delphes/build/libDelphes")
@@ -22,24 +28,29 @@ gROOT.ProcessLine(open('src/BayesRandS.cc').read())
 exec('from ROOT import *')
 
 ##read in command line arguments
-defaultInfile_ = "../SampleProduction/delphes/delphes_nolhe1.root"
+defaultInfile_ = "../SampleProduction/delphes/delphes_qcd1.root"
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("-v", "--verbosity", type=int, default=10000,help="analyzer script to batch")
 parser.add_argument("-fin", "--fnamekeyword", type=str,default=defaultInfile_,help="file")
+parser.add_argument("-quickrun", "--quickrun", type=bool, default=False,help="short run")
 args = parser.parse_args()
-inputFileNames = args.fnamekeyword
-inputFiles = glob(inputFileNames)
+quickrun = args.quickrun
+fnamekeyword = args.fnamekeyword
+inputFiles = glob(fnamekeyword)
 verbosity = args.verbosity
 llhdMhtThresh = 15
 BTag_Cut = 0.5 #delphes b-tagging is binary, so any number between 0 and 1 here would do
 
 ##declare and load a tree
 c = TChain('Delphes')
-for fname in inputFiles: c.Add(fname)
-nentries = c.GetEntries()
+for fname in inputFiles: 
+	print 'adding', fname
+	c.Add(fname)
+
 c.Show(0)
 nentries = c.GetEntries()
+if quickrun: nentries = min(1000,nentries)
 print 'n(entries) =', nentries
 
 ##feed the tree to delphes, set up which branches need to be used
@@ -49,9 +60,12 @@ branchJets = treeReader.UseBranch("Jet")
 branchHT = treeReader.UseBranch("ScalarHT")
 branchGenJet = treeReader.UseBranch("GenJet")
 branchMissingET = treeReader.UseBranch("MissingET")
+branchPhoton = treeReader.UseBranch("Photon")
+branchElectron = treeReader.UseBranch("Electron")
+branchMuon = treeReader.UseBranch("Muon")
 
 ##Create output file
-newname = 'llhd-prior-hists.root'
+newname = 'llhd-prior-hists-'+fnamekeyword.split('/')[-1].replace('.root','')+'.root'
 fnew = TFile(newname, 'recreate')
 print 'creating', newname
 
@@ -97,22 +111,15 @@ for ieta in range(1,templateEtaAxis.GetNbins()+1):
 		hr.Sumw2()
 		hResRecTemplates[-1].append(hr)
 
-binHt = binning_templates['Ht']
-binHtArr = array('d',binHt)
-nBinHt = len(binHtArr)-1
-hHtTemplate = TH1F('hHtTemplate','hHtTemplate',nBinHt,binHtArr)
-templateHtAxis = hHtTemplate.GetXaxis()
+
 binHardMetArr = array('d',binning_templates['HardMet'])
 nBinHardMet = len(binHardMetArr)-1
 
-if MetConstraintName=='GenHardMetPt':
-	binMetConstraintArr = binHardMetArr
-	nBinMetConstraint = nBinHardMet
+if MetConstraintName=='HardMetPt': binMetConstraintArr = array('d',binning_templates['HardMet'])
+	
+if MetConstraintName=='MetSignificance': binMetConstraintArr = array('d',binning_templates['MetSignificance'])
 
-binHybMetArr = binHardMetArr
-nBinHybMet = nBinHardMet
-binMetArr = binHardMetArr
-nBinMet = nBinHardMet
+nBinMetConstraint = len(binMetConstraintArr)-1
 
 nbinsDphi = binning_templates['DPhi1'][0]
 lowDphi = binning_templates['DPhi1'][1]
@@ -127,36 +134,25 @@ hHardMetPhiTemplatesB0 = ['']
 hHardMetPhiTemplatesB1 = ['']
 hHardMetPhiTemplatesB2 = ['']
 hHardMetPhiTemplatesB3 = ['']
-hMetPtTemplatesB0 = ['']
-hMetPtTemplatesB1 = ['']
-hMetPhiTemplatesB0 = ['']
-hMetPhiTemplatesB1 = ['']
+
 for iht in range(1,templateHtAxis.GetNbins()+2):
 	htrange = str(templateHtAxis.GetBinLowEdge(iht))+'-'+str(templateHtAxis.GetBinUpEdge(iht))
 	hMetConstraintB0 = TH1F('hGen'+MetConstraintName+'PtB0(ght'+htrange+')','hGen'+MetConstraintName+'PtB0(ght'+htrange+')',nBinMetConstraint,binMetConstraintArr)
-	hGenHardMetPhiB0 = TH1F('hGen'+MetConstraintName+'PhiB0(ght'+htrange+')','hGen'+MetConstraintName+'PhiB0(ght'+htrange+')',nbinsDphi,lowDphi,highDphi)
+	hGenHardMetPhiB0 = TH1F('hGenHardMetDPhiB0(ght'+htrange+')','hGenHardMetDPhiB0(ght'+htrange+')',nbinsDphi,lowDphi,highDphi)
 	hMetConstraintTemplatesB0.append(hMetConstraintB0)
 	hHardMetPhiTemplatesB0.append(hGenHardMetPhiB0)
 	hMetConstraintB1 = TH1F('hGen'+MetConstraintName+'PtB1(ght'+htrange+')','hGen'+MetConstraintName+'PtB1(ght'+htrange+')',nBinMetConstraint,binMetConstraintArr)
-	hGenHardMetPhiB1 = TH1F('hGen'+MetConstraintName+'PhiB1(ght'+htrange+')','hGen'+MetConstraintName+'PhiB1(ght'+htrange+')',nbinsDphi,lowDphi,highDphi)
+	hGenHardMetPhiB1 = TH1F('hGenHardMetDPhiB1(ght'+htrange+')','hGenHardMetDPhiB1(ght'+htrange+')',nbinsDphi,lowDphi,highDphi)
 	hMetConstraintTemplatesB1.append(hMetConstraintB1)
 	hHardMetPhiTemplatesB1.append(hGenHardMetPhiB1)
 	hMetConstraintB2 = TH1F('hGen'+MetConstraintName+'PtB2(ght'+htrange+')','hGen'+MetConstraintName+'PtB2(ght'+htrange+')',nBinMetConstraint,binMetConstraintArr)
-	hGenHardMetPhiB2 = TH1F('hGen'+MetConstraintName+'PhiB2(ght'+htrange+')','hGen'+MetConstraintName+'PhiB2(ght'+htrange+')',nbinsDphi,lowDphi,highDphi)
+	hGenHardMetPhiB2 = TH1F('hGenHardMetDPhiB2(ght'+htrange+')','hGenHardMetDPhiB2(ght'+htrange+')',nbinsDphi,lowDphi,highDphi)
 	hMetConstraintTemplatesB2.append(hMetConstraintB2)
 	hHardMetPhiTemplatesB2.append(hGenHardMetPhiB2)
 	hMetConstraintB3 = TH1F('hGen'+MetConstraintName+'PtB3(ght'+htrange+')','hGen'+MetConstraintName+'PtB3(ght'+htrange+')',nBinMetConstraint,binMetConstraintArr)
-	hGenHardMetPhiB3 = TH1F('hGen'+MetConstraintName+'PhiB3(ght'+htrange+')','hGen'+MetConstraintName+'PhiB3(ght'+htrange+')',nbinsDphi,lowDphi,highDphi)
+	hGenHardMetPhiB3 = TH1F('hGenHardMetDPhiB3(ght'+htrange+')','hGenHardMetDPhiB3(ght'+htrange+')',nbinsDphi,lowDphi,highDphi)
 	hMetConstraintTemplatesB3.append(hMetConstraintB3)
 	hHardMetPhiTemplatesB3.append(hGenHardMetPhiB3)
-	hMetPtB0 = TH1F('hMetPtB0(ght'+htrange+')','hMetPtB0(ght'+htrange+')',nBinMet,binMetArr)
-	hMetPhiB0 = TH1F('hMetPhiB0(ght'+htrange+')','hMetPhiB0(ght'+htrange+')',nbinsDphi,lowDphi,highDphi)
-	hMetPtTemplatesB0.append(hMetPtB0)
-	hMetPhiTemplatesB0.append(hMetPhiB0)
-	hMetPtB1 = TH1F('hMetPtB1(ght'+htrange+')','hMetPtB1(ght'+htrange+')',nBinMet,binMetArr)
-	hMetPhiB1 = TH1F('hMetPhiB1(ght'+htrange+')','hMetPhiB1(ght'+htrange+')',nbinsDphi,lowDphi,highDphi)
-	hMetPtTemplatesB1.append(hMetPtB1)
-	hMetPhiTemplatesB1.append(hMetPhiB1)
 
 for ientry in range(nentries):
 	if ientry%verbosity==0: print 'now processing event number', ientry, 'of', nentries
@@ -167,9 +163,12 @@ for ientry in range(nentries):
 
 	##some universal selection
 	weight = 1
-
-
-
+		
+	if not len(list(branchPhoton))==0: continue
+	if not len(list(branchElectron))==0: continue
+	if not len(list(branchMuon))==0: continue		
+	
+	
 	##declare empty vector of UsefulJets (in c++, std::vector<UsefulJet>):
 	recojets = vector('UsefulJet')()
 
@@ -195,7 +194,6 @@ for ientry in range(nentries):
 		genjets.push_back(ujet)
 
 	ght = getHt(genjets, 30)# make HT include the neutrinos 
-	ght = getHt(genjets, 30)# make HT include the neutrinos 
 	iht = templateHtAxis.FindBin(ght)      
 
 
@@ -203,6 +201,11 @@ for ientry in range(nentries):
 	gHardMetPt, gHardMetPhi = gHardMetVec.Pt(), gHardMetVec.Phi()
 	RecoMetVec = mkmet(branchMissingET[0].MET,branchMissingET[0].Phi)
 
+	if mettyobject_code==0: mettyobject = gHardMetPt
+	if mettyobject_code==1: 
+		if ght>0: mettyobject = gHardMetPt/TMath.Sqrt(ght)
+		else: mettyobject = -1.0
+			
 	for gjet in genjets:
 		if not (gjet.Pt()>2):continue
 		geta = abs(gjet.Eta())
@@ -228,7 +231,7 @@ for ientry in range(nentries):
 				variation = 0 # this can be used for JER scale factors
 				pt1 = max(0.,gpt+(1+variation)*(pt0-gpt))
 				response = pt1/gpt
-				sumpt = calcSumPt(recojets, rjet, 0.7, 0)
+				sumpt = calcSumPt(recojets, rjet, 0.8, 0)###0.8 is twice jet radius
 				ratioRPtSumpt1 = rjet.Pt()/sumpt
 				recoCsv = rjet.csv
 				if dR_<0.4:  break # if there's not one within 0.4, keep looking
@@ -245,20 +248,21 @@ for ientry in range(nentries):
 	if nbtags>2: 
 		if nGenJets>2:
 			genBjet = getLeadingGenBJet(genjets, recojets, BTag_Cut)
-			hMetConstraintTemplatesB3[iht].Fill(gHardMetPt,weight)
+
+			hMetConstraintTemplatesB3[iht].Fill(mettyobject,weight)
 			hHardMetPhiTemplatesB3[iht].Fill(abs(genBjet.tlv.DeltaPhi(gHardMetVec)),weight)
 	elif nbtags>1: 
 		if nGenJets>1:
 			genBjet = getLeadingGenBJet(genjets, recojets, BTag_Cut)
-			hMetConstraintTemplatesB2[iht].Fill(gHardMetPt,weight)
+			hMetConstraintTemplatesB2[iht].Fill(mettyobject,weight)
 			hHardMetPhiTemplatesB2[iht].Fill(abs(genBjet.tlv.DeltaPhi(gHardMetVec)),weight)
 	elif nbtags>0: 
 		if nGenJets>1:
 			genBjet = getLeadingGenBJet(genjets, recojets, BTag_Cut)
-			hMetConstraintTemplatesB1[iht].Fill(gHardMetPt,weight)
+			hMetConstraintTemplatesB1[iht].Fill(mettyobject,weight)
 			hHardMetPhiTemplatesB1[iht].Fill(abs(genBjet.tlv.DeltaPhi(gHardMetVec)),weight)
 	elif nGenJets>1:
-		hMetConstraintTemplatesB0[iht].Fill(gHardMetPt,weight)
+		hMetConstraintTemplatesB0[iht].Fill(mettyobject,weight)
 		hHardMetPhiTemplatesB0[iht].Fill(abs(genjets[0].tlv.DeltaPhi(gHardMetVec)),weight)
 	
 	#if ientry>5: 
@@ -302,3 +306,4 @@ hHtTemplate.Write()
 
 print 'just created', newname
 fnew.Close()
+

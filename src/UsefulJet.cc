@@ -7,7 +7,6 @@
 #include "TF1.h"
 #include "TH1F.h"
 #include "TGraph.h"
-//#include "rs/QCDBkgRS/interface/UsefulJet.h"//Marek
 #include "src/UsefulJet.h"//Sam
 
 

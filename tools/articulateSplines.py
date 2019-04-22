@@ -26,7 +26,7 @@ dir_.cd()
 nsmooth = 5
 for key in keys:
     name = key.GetName()
-    if not ('hRTemplate(gPt' in name or 'hGenHardMet' in name or 'HybMet' in name): continue
+    if not ('hRTemplate(gPt' in name or 'hGenHardMet' in name or 'Significance' in name): continue
     print 'name'
     h = f.Get(name)
     print 'name=',name

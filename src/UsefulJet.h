@@ -383,7 +383,7 @@ double calcMinDr(std::vector<TLorentzVector> collection, UsefulJet obj, double g
     double minDr = 9.9;
     for (int ithing=0; ithing<collection.size(); ithing++)
     	{
-    		UsefulJet thing = collection[ithing];
+    		TLorentzVector thing = collection[ithing];
     		double dr = obj.DeltaR(thing);
         	if (dr<minDr)
         		{
@@ -392,6 +392,25 @@ double calcMinDr(std::vector<TLorentzVector> collection, UsefulJet obj, double g
         		}
         }
     return minDr;
+}
+
+TLorentzVector calcMinDr(std::vector<UsefulJet> collection, UsefulJet obj, double goodenough=0.4)
+{
+	
+    double minDr = 9.9;
+    TLorentzVector bestmatch;
+    for (int ithing=0; ithing<collection.size(); ithing++)
+    	{
+    		UsefulJet thing = collection[ithing];
+    		double dr = obj.DeltaR(thing);
+        	if (dr<minDr)
+        		{
+        			minDr = dr;
+        			bestmatch = thing.tlv;
+        			if (minDr<goodenough) return bestmatch;
+        		}
+        }
+    return bestmatch;
 }
 
 UsefulJet getLeadingGenBJet(std::vector<UsefulJet> GenJets, std::vector<UsefulJet> RecoJets, double BTAG_CSV)

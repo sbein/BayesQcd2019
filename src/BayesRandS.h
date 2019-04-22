@@ -25,6 +25,8 @@ int _ietaNew_, _iptNew_, _otherbin_;
 double _rmht_, _rdphi_;
 
 
+  
+  
 void findJetToPin(std::vector<UsefulJet> jetVec, int nparams, int & ipin, double & cstart )
 {
   double ht = getHt(jetVec, JET_PT_THRESH);
@@ -54,7 +56,7 @@ void findJetToPin(std::vector<UsefulJet> jetVec, int nparams, int & ipin, double
       }
       double c2 = num2/denom;
       if (fabs(c2-1)<0.8){
-  	ipin = i; cstart = c2;/////////change in hamburg////////
+  	ipin = i; cstart = c2;
   	return;
       }
     }
@@ -132,7 +134,6 @@ void fcn(Int_t &npar, Double_t *gin, Double_t &f, Double_t *par, Int_t iflag)
     }
   _ActiveHt_ = TMath::Min(4999.0,_ActiveHt_);
   _iht_ = _Templates_.hHtTemplate->GetXaxis()->FindBin(_ActiveHt_);
-
   if (_nbjets_ == 0)
     {
       _leadjet_ = _Templates_.dynamicJets[_iLeadJet_];
@@ -158,14 +159,15 @@ void fcn(Int_t &npar, Double_t *gin, Double_t &f, Double_t *par, Int_t iflag)
 	  _ActiveMhtPhiPrior_ = _Templates_.gGenMhtDPhiTemplatesB3[_iht_];
 	}
     }
-  _rmht_ = _ActiveMht_.Pt();
-  //_rdphi_ = fabs(_ActiveMht_.DeltaPhi(_leadjet_.tlv));
+  _rmht_ = _ActiveMht_.Pt();///
+  //if (_ActiveHt_>0) _rmht_*=1.0/sqrt(_ActiveHt_);
+  //else _rmht_ = 0;
+  
   _rdphi_ = fabs(_ActiveMht_.DeltaPhi(_leadjet_.tlv));
-  _ActiveLikelihood_*=_ActiveMhtPrior_->Eval(_rmht_,0,"S");
+  _ActiveLikelihood_*=pow(_ActiveMhtPrior_->Eval(_rmht_,0,"S"),1);
   _ActiveLikelihood_*=_ActiveMhtPhiPrior_->Eval(_rdphi_,0,"S");
   f = -fabs(_ActiveLikelihood_);
   return;
-
 }
 
 
@@ -261,14 +263,14 @@ std::vector<UsefulJet> smearJets(std::vector<UsefulJet> jetVec, int n2smear){
 }
 
 
-void GleanTemplatesFromFile(TFile* ftemplate)
+void GleanTemplatesFromFile(TFile* ftemplate, TFile* fprior)
 {
 
   TH1F* hPtTemplate = (TH1F*)ftemplate->Get("hPtTemplate");
   TAxis* templatePtAxis = (TAxis*)hPtTemplate->GetXaxis();
   TH1F* hEtaTemplate = (TH1F*)ftemplate->Get("hEtaTemplate");
   TAxis* templateEtaAxis = (TAxis*)hEtaTemplate->GetXaxis();
-  TH1F* hHtTemplate = (TH1F*)ftemplate->Get("hHtTemplate");
+  TH1F* hHtTemplate = (TH1F*)fprior->Get("hHtTemplate");
   TAxis* templateHtAxis = (TAxis*)hHtTemplate->GetXaxis();
 
   TH1F* hNull = new TH1F("hNull","hNull",1,-4,-3);
@@ -343,35 +345,42 @@ void GleanTemplatesFromFile(TFile* ftemplate)
   std::vector<TGraph*> gGenMhtDPhiTemplatesB3;
   gGenMhtDPhiTemplatesB3.push_back(gNull);
 
-  string keyvar = "HardMet";//This could be changed later if the MET is to be used
+string constraintName = "HardMetPt";
+//string constraintName = "Mht";
+////constraintName = "MetSignificance";
+string constraintPhiName = "HardMetDPhi";
+//string constraintPhiName = "MhtPhi";
+//constraintPhiName = "HardMetPhi";///
 
   for(unsigned int iht = 1; iht < templateHtAxis->GetNbins()+2; iht++)
     {
       char gname[100];
-      name = sprintf (gname, "splines/hGen%sPtB0(ght%2.1f-%2.1f)_graph", keyvar.c_str(), templateHtAxis->GetBinLowEdge(iht), templateHtAxis->GetBinUpEdge(iht));
-      TGraph* fb0 = (TGraph*)ftemplate->Get(gname);
+      name = sprintf (gname, "splines/hGen%sPtB0(ght%2.1f-%2.1f)_graph", constraintName.c_str(), templateHtAxis->GetBinLowEdge(iht), templateHtAxis->GetBinUpEdge(iht));
+		cout << "gleaning " << gname << endl;      
+      TGraph* fb0 = (TGraph*)fprior->Get(gname);
       gGenMhtPtTemplatesB0.push_back(fb0);
       char gnamePhi[100];
-      name = sprintf (gnamePhi, "splines/hGen%sPhiB0(ght%2.1f-%2.1f)_graph", keyvar.c_str(), templateHtAxis->GetBinLowEdge(iht), templateHtAxis->GetBinUpEdge(iht));
-      TGraph* fb0phi = (TGraph*)ftemplate->Get(gnamePhi);
+      name = sprintf (gnamePhi, "splines/hGen%sB0(ght%2.1f-%2.1f)_graph", constraintPhiName.c_str(), templateHtAxis->GetBinLowEdge(iht), templateHtAxis->GetBinUpEdge(iht));
+      TGraph* fb0phi = (TGraph*)fprior->Get(gnamePhi);
+    cout << "gleaning " << gnamePhi << endl;
       gGenMhtDPhiTemplatesB0.push_back(fb0phi);
-      name = sprintf (gname, "splines/hGen%sPtB1(ght%2.1f-%2.1f)_graph", keyvar.c_str(), templateHtAxis->GetBinLowEdge(iht), templateHtAxis->GetBinUpEdge(iht));
-      TGraph* fb1 = (TGraph*)ftemplate->Get(gname);
+      name = sprintf (gname, "splines/hGen%sPtB1(ght%2.1f-%2.1f)_graph", constraintName.c_str(), templateHtAxis->GetBinLowEdge(iht), templateHtAxis->GetBinUpEdge(iht));
+      TGraph* fb1 = (TGraph*)fprior->Get(gname);
       gGenMhtPtTemplatesB1.push_back(fb1);
-      name = sprintf (gnamePhi, "splines/hGen%sPhiB1(ght%2.1f-%2.1f)_graph", keyvar.c_str(), templateHtAxis->GetBinLowEdge(iht), templateHtAxis->GetBinUpEdge(iht));
-      TGraph* fb1phi = (TGraph*)ftemplate->Get(gnamePhi);
+      name = sprintf (gnamePhi, "splines/hGen%sB1(ght%2.1f-%2.1f)_graph", constraintPhiName.c_str(), templateHtAxis->GetBinLowEdge(iht), templateHtAxis->GetBinUpEdge(iht));
+      TGraph* fb1phi = (TGraph*)fprior->Get(gnamePhi);
       gGenMhtDPhiTemplatesB1.push_back(fb1phi);
-      name = sprintf (gname, "splines/hGen%sPtB2(ght%2.1f-%2.1f)_graph", keyvar.c_str(), templateHtAxis->GetBinLowEdge(iht), templateHtAxis->GetBinUpEdge(iht));
-      TGraph* fb2 = (TGraph*)ftemplate->Get(gname);
+      name = sprintf (gname, "splines/hGen%sPtB2(ght%2.1f-%2.1f)_graph", constraintName.c_str(), templateHtAxis->GetBinLowEdge(iht), templateHtAxis->GetBinUpEdge(iht));
+      TGraph* fb2 = (TGraph*)fprior->Get(gname);
       gGenMhtPtTemplatesB2.push_back(fb2);
-      name = sprintf (gnamePhi, "splines/hGen%sPhiB2(ght%2.1f-%2.1f)_graph", keyvar.c_str(), templateHtAxis->GetBinLowEdge(iht), templateHtAxis->GetBinUpEdge(iht));
-      TGraph* fb2phi = (TGraph*)ftemplate->Get(gnamePhi);
+      name = sprintf (gnamePhi, "splines/hGen%sB2(ght%2.1f-%2.1f)_graph", constraintPhiName.c_str(), templateHtAxis->GetBinLowEdge(iht), templateHtAxis->GetBinUpEdge(iht));
+      TGraph* fb2phi = (TGraph*)fprior->Get(gnamePhi);
       gGenMhtDPhiTemplatesB2.push_back(fb2phi);
-      name = sprintf (gname, "splines/hGen%sPtB3(ght%2.1f-%2.1f)_graph", keyvar.c_str(), templateHtAxis->GetBinLowEdge(iht), templateHtAxis->GetBinUpEdge(iht));
-      TGraph* fb3 = (TGraph*)ftemplate->Get(gname);
+      name = sprintf (gname, "splines/hGen%sPtB3(ght%2.1f-%2.1f)_graph", constraintName.c_str(), templateHtAxis->GetBinLowEdge(iht), templateHtAxis->GetBinUpEdge(iht));
+      TGraph* fb3 = (TGraph*)fprior->Get(gname);
       gGenMhtPtTemplatesB3.push_back(fb3);
-      name = sprintf (gnamePhi, "splines/hGen%sPhiB3(ght%2.1f-%2.1f)_graph", keyvar.c_str(), templateHtAxis->GetBinLowEdge(iht), templateHtAxis->GetBinUpEdge(iht));
-      TGraph* fb3phi = (TGraph*)ftemplate->Get(gnamePhi);
+      name = sprintf (gnamePhi, "splines/hGen%sB3(ght%2.1f-%2.1f)_graph", constraintPhiName.c_str(), templateHtAxis->GetBinLowEdge(iht), templateHtAxis->GetBinUpEdge(iht));
+      TGraph* fb3phi = (TGraph*)fprior->Get(gnamePhi);
       gGenMhtDPhiTemplatesB3.push_back(fb3phi);
     }
 
@@ -397,6 +406,11 @@ void GleanTemplatesFromFile(TFile* ftemplate)
   _Templates_.nparams = 0;
 }
 
+
+void GleanTemplatesFromFile(TFile* ftemplate)
+{
+	GleanTemplatesFromFile(ftemplate, ftemplate);
+}
 
 std::vector<double> createMatchedCsvVector(std::vector<TLorentzVector> GenJets, std::vector<UsefulJet> RecoJets)
 {
