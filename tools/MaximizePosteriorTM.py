@@ -13,9 +13,8 @@ lhdHardMetJetPtCut = 15.0
 AnHardMetJetPtCut = 30.0
 cutoff = 15.0
 isdata = False
-rebalancedMetCut = 110
 rebalancedMetCut = 150
-cleanmethod = False
+cleanrecluster = False
 
 debugmode = False
 sayalot = False
@@ -56,7 +55,7 @@ else: n2process = 9999999999999
 print 'will analyze', n2process, 'events'
 llhdHardMetThresh = 15
 mktree = False
-BTag_Cut = 0.5 #Delphes b-tagging binary
+
 if bootstrap=='0': 
     bootstrapmode = False
     bootupfactor = 1
@@ -96,16 +95,12 @@ BTag_Cut = BTAG_deepCSV
 regionCuts = {}
 pi = 3.14159
 Inf = 9999
-#varlist =                            ['St',    'HardMet','NJets','BTags','MinDPhi','NPhotons', 'MetSignificance']
+#varlist =                            ['Ht',    'HardMet','NJets','BTags','MinDPhi','NPhotons', 'MetSignificance']
 regionCuts['NoCuts1Pho']                = [[0,Inf],  [0,Inf], [0,Inf],[0,Inf],[-Inf,Inf],    [1,Inf],  [-1,Inf]]
-regionCuts['Baseline1Pho']          = [[120,Inf],[120,Inf],[0,Inf],[0,Inf],[0.0,Inf],    [1,1],    [-1,Inf]]
-regionCuts['Baseline2Pho']          = [[120,Inf],[120,Inf],[0,Inf],[0,Inf],[0.0,Inf],    [2,Inf],  [-1,Inf]]
-#regionCuts['Baseline1PhoLdp']          = [[120,Inf],[120,Inf],[0,Inf],[0,Inf],[0,0.5],    [1,1],    [-1,Inf]]
-#regionCuts['Baseline2PhoLdp']          = [[120,Inf],[120,Inf],[0,Inf],[0,Inf],[0,0.5],    [2,Inf],  [-1,Inf]]
-regionCuts['BaselineHighHt1Pho']          = [[600,Inf],[120,Inf],[0,Inf],[0,Inf],[0.0,Inf],    [1,1],    [-1,Inf]]
-regionCuts['BaselineHighHt2Pho']          = [[600,Inf],[120,Inf],[0,Inf],[0,Inf],[0.0,Inf],    [2,Inf],  [-1,Inf]]
-#regionCuts['Baseline']          = [[120,Inf],[120,Inf],[0,Inf],[0,Inf],[0.5,Inf],    [0,Inf],    [-1,Inf]]
-#regionCuts['BaselineLdp']          = [[120,Inf],[120,Inf],[0,Inf],[0,Inf],[0,0.5],    [0,Inf],    [-1,Inf]]
+regionCuts['Baseline1Pho']          = [[200,Inf],[200,Inf],[0,Inf],[0,Inf],[0.0,Inf],    [1,1],    [-1,Inf]]
+regionCuts['Baseline2Pho']          = [[200,Inf],[200,Inf],[0,Inf],[0,Inf],[0.0,Inf],    [2,Inf],  [-1,Inf]]
+regionCuts['BaselineHighHt1Pho']          = [[600,Inf],[200,Inf],[0,Inf],[0,Inf],[0.0,Inf],    [1,1],    [-1,Inf]]
+regionCuts['BaselineHighHt2Pho']          = [[600,Inf],[200,Inf],[0,Inf],[0,Inf],[0.0,Inf],    [2,Inf],  [-1,Inf]]
 
 #################
 # Load in chain #
@@ -131,7 +126,7 @@ c.Show(0)
 print 'n(entries) =', n2process
 
 
-varlist = ['St','HardMet','NJets','BTags','MinDPhiHardMetJets','NPhotons', 'MetSignificance']
+varlist = ['Ht','HardMet','NJets','BTags','MinDPhiHardMetJets','NPhotons', 'MetSignificance']
 indexVar = {}
 for ivar, var in enumerate(varlist): indexVar[var] = ivar
 indexVar[''] = -1
@@ -164,13 +159,13 @@ hEtaTemplate = ftemplate.Get('hEtaTemplate')
 templateEtaAxis = hEtaTemplate.GetXaxis()
 
 hHtTemplate = ftemplate.Get('hHtTemplate')
-templateStAxis = hHtTemplate.GetXaxis()
+templateHtAxis = hHtTemplate.GetXaxis()
 '''#option for using FullSim-based prior
 priorFileName = templateFileName
 priorFileName = 'usefulthings/ResponseFunctionsMC17AllFilters_deepCsv.root'
 fprior = TFile(priorFileName)
 hHtTemplate = fprior.Get('hHtTemplate')
-templateStAxis = hHtTemplate.GetXaxis()
+templateHtAxis = hHtTemplate.GetXaxis()
 '''
 
 ##Create output file
@@ -183,10 +178,10 @@ if mktree:
     littletree = TTree('littletree','littletree')
     prepareLittleTree(littletree)
 
-hSt = TH1F('hSt','hSt',120,0,2500)
-hSt.Sumw2()
-hStWeighted = TH1F('hStWeighted','hStWeighted',120,0,2500)
-hStWeighted.Sumw2()
+hHt = TH1F('hHt','hHt',120,0,2500)
+hHt.Sumw2()
+hHtWeighted = TH1F('hHtWeighted','hHtWeighted',120,0,2500)
+hHtWeighted.Sumw2()
 hGenMetGenHardMetRatio = TH1F('hGenMetGenHardMetRatio','hGenMetGenHardMetRatio',50,0,5)
 hGenMetGenHardMetRatio.Sumw2()
 hPassFit = TH1F('hPassFit','hPassFit',5,0,5)
@@ -264,7 +259,7 @@ for ientry in range(n2process):
     for ipho, pho in enumerate(c.GenParticles):
         if not pho.Pt()>100: continue #trigger is pho 70
         if not c.GenParticles_PdgId[ipho]==22: continue
-        if not c.GenParticles_Status[ipho]==1: continue
+        if not c.GenParticles_Htatus[ipho]==1: continue
         if not abs(pho.Eta())<2.4: continue        
         acme_objects.push_back(pho)				
         recophotons.push_back(pho)
@@ -315,7 +310,7 @@ for ientry in range(n2process):
     _Templates_.AcmeVector = AcmeVector	
 
 
-    if cleanmethod: recojets_ = CreateUsefulJetVector(c.Jetsclean, c.Jetsclean_bJetTagDeepCSVBvsAll)
+    if cleanrecluster: recojets_ = CreateUsefulJetVector(c.Jetsclean, c.Jetsclean_bJetTagDeepCSVBvsAll)
     else: recojets_ = CreateUsefulJetVector(c.Jets, c.Jets_bJetTagDeepCSVBvsAll)
 
     if is2017: # ecal noise treatment
@@ -345,11 +340,14 @@ for ientry in range(n2process):
         ujet = UsefulJet(jet.tlv, jet.btagscore)        
         recojets.push_back(ujet)
         
-    if not nMatchedAcmeJetPairs==len(acme_objects): continue
+    if cleanrecluster:
+        if not nMatchedAcmeJetParis==0: continue
+    else:
+        if not nMatchedAcmeJetPairs==len(acme_objects): continue
 
     genjets_ = vector('TLorentzVector')()
     #build up the vector of jets using TLorentzVectors; 
-    #this is where you have to interface with the input format you're using
+    #this is where you have to interface with the input format you're using (treemaker)
     for ijet, jet in enumerate(c.GenJets):
         #if not jet.Pt()>15: continue
         #if not abs(jet.Eta())<5: continue
@@ -362,9 +360,9 @@ for ientry in range(n2process):
             continue
         genjets_.push_back(tlvjet)
     gHt = getHt(genjets_,AnHardMetJetPtCut)
-    gSt = gHt
-    #for obj in acme_objects: gSt+=obj.Pt()
-    fillth1(hSt, gSt,1)
+    gHt = gHt
+    #for obj in acme_objects: gHt+=obj.Pt()
+    fillth1(hHt, gHt,1)
 
     matchedBtagscoreVec = createMatchedBtagscoreVector(genjets_, recojets)
     genjets = CreateUsefulJetVector(genjets_, matchedBtagscoreVec)
@@ -376,14 +374,12 @@ for ientry in range(n2process):
     CleanMetVec = TLorentzVector()
     CleanMetVec.SetPtEtaPhiE(c.METclean,0,c.METPhiclean,c.METclean)
     redirtiedMetVec = CleanMetVec.Clone()
-    redirtiedMetVec-=AcmeVector
-    #print 'reco metcleanmetclean', CleanMetVec.Pt()
-    #print 'reco metclean-dirtied', redirtiedMetVec.Pt()    
+    redirtiedMetVec-=AcmeVector 
 
     ##observed histogram
     tHt = getHt(recojets,AnHardMetJetPtCut)
-    tSt = tHt
-    #for obj in acme_objects: tSt+=obj.Pt()
+    tHt = tHt
+    #for obj in acme_objects: tHt+=obj.Pt()
     tHardMhtVec = getHardMet(recojets,AnHardMetJetPtCut, mhtjetetacut)
     tHardMetVec = tHardMhtVec.Clone()
     tHardMetVec-=AcmeVector
@@ -412,12 +408,13 @@ for ientry in range(n2process):
         print 'MHT-clean-dirtied', mhtagain.Pt()
         print 'len(c.Photons)', len(c.Photons)
 
-    #mhtagain = mkmet(c.MHTclean, c.MHTPhiclean)
-    #mhtagain-=AcmeVector
-    #tHardMetPt, tHardMetPhi = mhtagain.Pt(), mhtagain.Phi()
 
-    #if c.NJets-c.NJetsclean==len(acme_objects):tHardMetPt = mhtagain.Clone()#mkmet(c.MHT, c.MHTPhi)
-    #    tHardMetPt, tHardMetPhi = tHardMetPt.Pt(), tHardMetPt.Phi()
+    if cleanrecluster:
+        mhtagain = mkmet(c.MHTclean, c.MHTPhiclean)
+        mhtagain-=AcmeVector
+        tHardMetPt, tHardMetPhi = mhtagain.Pt(), mhtagain.Phi()
+        if c.NJets-c.NJetsclean==len(acme_objects): tHardMetPt = mhtagain.Clone()
+        tHardMetPt, tHardMetPhi = tHardMetPt.Pt(), tHardMetPt.Phi()
     
     mindphi = 4
     for jet in recojets[:4]: mindphi = min(mindphi, abs(jet.DeltaPhi(tHardMetVec)))
@@ -437,7 +434,7 @@ for ientry in range(n2process):
     if debugmode:
         if not tHardMetPt>450: continue
 
-    fv = [tSt,tHardMetPt,tNJets,tBTags,mindphi, int(recophotons.size()),tMetSignificance]
+    fv = [tHt,tHardMetPt,tNJets,tBTags,mindphi, int(recophotons.size()),tMetSignificance]
 
     if tHardMetPt>250: 
         print ientry, 'fv', fv
@@ -458,8 +455,8 @@ for ientry in range(n2process):
     #	fitsucceed = True
     #	rebalancedJets = recojets
     mHt = getHt(rebalancedJets,AnHardMetJetPtCut)
-    mSt = mHt
-    #for obj in acme_objects: mSt+=obj.Pt()
+    mHt = mHt
+    #for obj in acme_objects: mHt+=obj.Pt()
     mHardMetVec = getHardMet(rebalancedJets,AnHardMetJetPtCut, mhtjetetacut)
     mHardMetVec-=AcmeVector
     mHardMetPt, mHardMetPhi = mHardMetVec.Pt(), mHardMetVec.Phi()
@@ -469,15 +466,15 @@ for ientry in range(n2process):
     mNJets = countJets(rebalancedJets,AnHardMetJetPtCut)
     mBTags = countBJets(rebalancedJets,AnHardMetJetPtCut)###
 
-    #hope = (fitsucceed and mHardMetPt<rebalancedMetCut)# mHardMetPt>min(mSt/2,180):# was 160
-    #hope = (fitsucceed and mSignificance<rebalancedSignificanceCut)# mHardMetPt>min(mSt/2,180):# was 160
-    hope = (fitsucceed and mHardMetPt<rebalancedMetCut)# mHardMetPt>min(mSt/2,180):# was 160	
+    #hope = (fitsucceed and mHardMetPt<rebalancedMetCut)# mHardMetPt>min(mHt/2,180):# was 160
+    #hope = (fitsucceed and mSignificance<rebalancedSignificanceCut)# mHardMetPt>min(mHt/2,180):# was 160
+    hope = (fitsucceed and mHardMetPt<rebalancedMetCut)# mHardMetPt>min(mHt/2,180):# was 160	
 
     redoneMET = redoMET(MetVec,recojets,rebalancedJets)
     mMetPt,mMetPhi = redoneMET.Pt(), redoneMET.Phi()
     mindphi = 4
     for jet in rebalancedJets[:4]: mindphi = min(mindphi, abs(jet.DeltaPhi(mHardMetVec)))
-    fv = [mSt,mHardMetPt,mNJets,mBTags,mindphi, int(recophotons.size()),mMetSignificance]
+    fv = [mHt,mHardMetPt,mNJets,mBTags,mindphi, int(recophotons.size()),mMetSignificance]
 
     for regionkey in regionCuts:      
         for ivar, varname in enumerate(varlist):
@@ -497,8 +494,8 @@ for ientry in range(n2process):
         if not hope: break
         RplusSJets = smearJets(rebalancedJets,99+_Templates_.nparams)
         rpsHt = getHt(RplusSJets,AnHardMetJetPtCut)
-        rpsSt = rpsHt
-        #for obj in acme_objects: rpsSt+=obj.Pt()
+        rpsHt = rpsHt
+        #for obj in acme_objects: rpsHt+=obj.Pt()
         rpsHardMetVec = getHardMet(RplusSJets,AnHardMetJetPtCut, mhtjetetacut)
         rpsHardMetVec-=AcmeVector
         rpsHardMetPt, rpsHardMetPhi = rpsHardMetVec.Pt(), rpsHardMetVec.Phi()
@@ -508,7 +505,7 @@ for ientry in range(n2process):
         rpsBTags = countBJets(RplusSJets,AnHardMetJetPtCut)
         mindphi = 4
         for jet in RplusSJets[:4]: mindphi = min(mindphi, abs(jet.DeltaPhi(rpsHardMetVec)))
-        fv = [rpsSt,rpsHardMetPt,rpsNJets,rpsBTags,mindphi, int(recophotons.size()),rpsMetSignificance]
+        fv = [rpsHt,rpsHardMetPt,rpsNJets,rpsBTags,mindphi, int(recophotons.size()),rpsMetSignificance]
         #print i, 'of', nsmears, fv
         for regionkey in regionCuts:     
             for ivar, varname in enumerate(varlist):
@@ -524,8 +521,8 @@ for ientry in range(n2process):
     weight = c.CrossSection
 
     gHt = getHt(genjets,AnHardMetJetPtCut)
-    gSt = gHt
-    #for obj in acme_objects: gSt+=obj.Pt()
+    gHt = gHt
+    #for obj in acme_objects: gHt+=obj.Pt()
 
     gHardMetVec = getHardMet(genjets,AnHardMetJetPtCut, mhtjetetacut)
     tmpgmet = gHardMetVec.Pt()
@@ -574,7 +571,7 @@ for ientry in range(n2process):
             print ijet, jet.Pt(), jet.Eta(), jet.Phi()
 
 
-    fv = [gSt,gHardMetPt,gNJets,gBTags,mindphi, int(recophotons.size()),gMetSignificance]	
+    fv = [gHt,gHardMetPt,gNJets,gBTags,mindphi, int(recophotons.size()),gMetSignificance]	
     for regionkey in regionCuts:
         for ivar, varname in enumerate(varlist):
             hname = regionkey+'_'+varname
@@ -590,8 +587,8 @@ for ientry in range(n2process):
         smearedJets = smearJets(genjets,9999)
         #smearedJets,csvSmearedJets = smearJets(genjets,matchedCsvVec,_Templates_.ResponseFunctions,_Templates_.hEtaTemplate,_Templates_.hPtTemplate,999)
         mHt = getHt(smearedJets,AnHardMetJetPtCut)
-        mSt = mHt
-        #for obj in acme_objects: mSt+=obj.Pt()
+        mHt = mHt
+        #for obj in acme_objects: mHt+=obj.Pt()
         mHardMetVec = getHardMet(smearedJets,AnHardMetJetPtCut, mhtjetetacut)
         mHardMetVec-=AcmeVector
         mHardMetPt, mHardMetPhi = mHardMetVec.Pt(), mHardMetVec.Phi()
@@ -603,7 +600,7 @@ for ientry in range(n2process):
         mMetPt, mMetPhi = redoneMET.Pt(), redoneMET.Phi()
         mindphi = 4
         for jet in smearedJets[:4]: mindphi = min(mindphi, abs(jet.DeltaPhi(mHardMetVec)))	
-        fv = [mSt,mHardMetPt,mNJets,mBTags,mindphi, int(recophotons.size()),mMetSignificance]
+        fv = [mHt,mHardMetPt,mNJets,mBTags,mindphi, int(recophotons.size()),mMetSignificance]
 
         for regionkey in regionCuts:
             for ivar, varname in enumerate(varlist):
@@ -614,8 +611,8 @@ for ientry in range(n2process):
 fnew.cd()
 writeHistoStruct(histoStructDict)
 hGenMetGenHardMetRatio.Write()
-hSt.Write()
-hStWeighted.Write()
+hHt.Write()
+hHtWeighted.Write()
 
 hPassFit.Write()
 hTotFit.Write()

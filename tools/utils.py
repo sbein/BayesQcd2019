@@ -409,7 +409,7 @@ def FabDraw(cGold,leg,hObserved,hComponents,datamc='mc',lumi='arbitrary', title 
 	hComponents.reverse()        
 	if abs(hComponents[0].Integral(-1,999)-1)<0.001:
 		hComponents[0].GetYaxis().SetTitle('Normalized')
-	else: hComponents[0].GetYaxis().SetTitle('#Events')
+	else: hComponents[0].GetYaxis().SetTitle('Events/GeV')
 	cGold.Update()
 	hObserved.GetYaxis().SetTitle('Normalized')
 	hObserved.GetYaxis().SetTitleOffset(1.15)
@@ -502,7 +502,7 @@ def FabDrawSystyRatio(cGold,leg,hObserved,hComponents,datamc='mc',lumi=35.9, tit
 	hComponents.reverse()        
 	if abs(hComponents[0].Integral(-1,999)-1)<0.001:
 		hComponents[0].GetYaxis().SetTitle('Normalized')
-	else: hComponents[0].GetYaxis().SetTitle('#Events')
+	else: hComponents[0].GetYaxis().SetTitle('Events/GeV')
 	cGold.Update()
 	hObserved.GetYaxis().SetTitle('Normalized')
 	hObserved.GetYaxis().SetTitleOffset(1.15)
@@ -632,7 +632,7 @@ def stampFab(lumi = 'arbitrary',datamc='MC'):
 	tl.DrawLatex(0.14,0.74, ('MC' in datamc)*' simulation')
 	tl.SetTextFont(regularfont)
 	if lumi=='': tl.DrawLatex(0.62,0.82,'#sqrt{s} = 13 TeV')
-	else: tl.DrawLatex(0.5,0.82,'#sqrt{s} = 13 TeV, L = '+str(lumi)+' fb^{-1}')
+	else: tl.DrawLatex(0.48,0.82,'#sqrt{s} = 13 TeV ('+str(lumi)+' fb^{-1})')
 	#tl.DrawLatex(0.64,0.82,'#sqrt{s} = 13 TeV')#, L = '+str(lumi)+' fb^{-1}')	
 	tl.SetTextSize(tl.GetTextSize()/1.6)
 	
@@ -726,6 +726,7 @@ def nicelabel(label):
 	label_ = label
 	label_ = label_.replace('Vs',' vs ')
 	label_ = label_.replace('HardMet','E_{T}^{miss}')
+	label_ = label_.replace('St','H_{T}')    
 	label_ = label_.replace('Met','E_{T}^{miss}')
 	label_ = label_.replace('Ht','H_{T}')
 	label_ = label_.replace('NJets','N_{jets}')
