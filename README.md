@@ -50,25 +50,4 @@ Once the jobs are done, a wrapper for the hadd routine can be called which also 
 python tools/mergeHistosFinalizeWeights.py output/<folder name>
 ```
 
-This applies the 1/n(simulated) on top of your the lumi*xsec weights, the latter of which was applied in the analyzer script. It creates a single file on which you can run the closurePlotter.py script. 
-
-### smoothen responses and prior distributions with splines
-```
-python tools/articulateSplines.py ResponseTemplates2017.root "output/Fall17MiniAODv2.TTJets/*Fall17MiniAODv2.TTJets*.root"
-python tools/articulateSplines.py ResponseTemplates2016.root "output/Summer16.QCD_HT/*Summer16.QCD_HT*.root"
-```
-
-The output file (its name is the middle argument) should be put into the usefulthings directory:
-
-```
-mv ResponseTemplates2017.root usefulthings/
-```
-
-## Rebalance and smear code
-
-Check that the rebalance and smear code is pointing to the desired response template file, and then run the R&S code:
-
-```
-python tools/RebalanceAndSmear.py --fnamekeyword RunIIFall17MiniAODv2.QCD_HT700to1000_TuneCP5_13TeV-madgraph-pythia8_248
-python tools/closureTests.py <output of previous script>
-```
+This applies the 1/n(simulated) on top of your the lumi*xsec weights, the latter of which was applied in the analyzer script. mergeHistosFinalizeWeights.py has hard code keywords defining the different datasets, each one corresponding to a unique cross section. If you want to run over another set of datasets, like inclusive QCD samples, you'd have to change these keywords by giving one key word per desired unique cross section. It creates a single file on which you can run the closurePlotter.py script. 
