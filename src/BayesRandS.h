@@ -71,7 +71,7 @@ void getLeadingBJet(std::vector<UsefulJet> RecoJets, int & ibjet, int & nbjets, 
   leadingbjet = UsefulJet();
   double highestPt = 0;
   for (unsigned int ireco = 0; ireco < RecoJets.size(); ireco++){
-    if (!(RecoJets[ireco].csv>BTAG_CSV)) continue;
+    if (!(RecoJets[ireco].btagscore>DEFAULT_BTAGCUT)) continue;
     double pt = RecoJets[ireco].Pt();
     if (!(pt>_Templates_.lhdMhtThresh)) continue;//////CHANGE IN HAMBURG////////
     //but first, lets see why this is crashing!
@@ -106,7 +106,7 @@ void fcn(Int_t &npar, Double_t *gin, Double_t &f, Double_t *par, Int_t iflag)
       if(fabs(_Templates_.dynamicJets[i].Eta())<2.4)
 	{
 	  if (_Templates_.dynamicJets[i].Pt()>JET_PT_THRESH) _ActiveHt_+= _Templates_.dynamicJets[i].Pt(); 
-	  if(_Templates_.dynamicJets[i].csv>BTAG_CSV &&
+	  if(_Templates_.dynamicJets[i].btagscore>DEFAULT_BTAGCUT &&
 	     _Templates_.dynamicJets[i].Pt()>_Templates_.lhdMhtThresh ) _nbjets_+=1;
 	}    
       if(_Templates_.dynamicJets[i].Pt()>_Templates_.lhdMhtThresh)
@@ -123,12 +123,12 @@ void fcn(Int_t &npar, Double_t *gin, Double_t &f, Double_t *par, Int_t iflag)
       _b_ = (_ptNew_-_ptBinC_)/(_PtBinOther_ - _ptBinC_);
       try
 		{
-	  _interpolatedFactor_ = 0.5*(_a_*_Templates_.ResponseFunctions[_Templates_.dynamicJets[i].csv>BTAG_CSV][_ietaNew_][_iptNew_]->Eval(par[i],0,"S") +
-				      _b_*_Templates_.ResponseFunctions[_Templates_.dynamicJets[i].csv>BTAG_CSV][_ietaNew_][_iptNew_+_otherbin_]->Eval(par[i],0,"S"));
+	  _interpolatedFactor_ = 0.5*(_a_*_Templates_.ResponseFunctions[_Templates_.dynamicJets[i].btagscore>DEFAULT_BTAGCUT][_ietaNew_][_iptNew_]->Eval(par[i],0,"S") +
+				      _b_*_Templates_.ResponseFunctions[_Templates_.dynamicJets[i].btagscore>DEFAULT_BTAGCUT][_ietaNew_][_iptNew_+_otherbin_]->Eval(par[i],0,"S"));
 		}
       catch (std::exception& e)
 	{
-	  _interpolatedFactor_ = _b_*_Templates_.ResponseFunctions[_Templates_.dynamicJets[i].csv>BTAG_CSV][_ietaNew_][_iptNew_+_otherbin_]->Eval(par[i],0,"S");
+	  _interpolatedFactor_ = _b_*_Templates_.ResponseFunctions[_Templates_.dynamicJets[i].btagscore>DEFAULT_BTAGCUT][_ietaNew_][_iptNew_+_otherbin_]->Eval(par[i],0,"S");
 	}
       _ActiveLikelihood_*=_interpolatedFactor_;
     }
@@ -252,9 +252,9 @@ std::vector<UsefulJet> smearJets(std::vector<UsefulJet> jetVec, int n2smear){
     if (pt<8 || int(j)>=n2smear) continue;
     int ieta = _Templates_.hEtaTemplate->GetXaxis()->FindBin(fabs(eta));
     int ipt = _Templates_.hPtTemplate->GetXaxis()->FindBin(pt);
-    if (!(_Templates_.ResponseHistos.at(smearedJets.back().csv>BTAG_CSV).at(ieta).at(ipt)->Integral()==0))
+    if (!(_Templates_.ResponseHistos.at(smearedJets.back().btagscore>DEFAULT_BTAGCUT).at(ieta).at(ipt)->Integral()==0))
       {
-	double rando = _Templates_.ResponseHistos.at(smearedJets.back().csv>BTAG_CSV).at(ieta).at(ipt)->GetRandom();
+	double rando = _Templates_.ResponseHistos.at(smearedJets.back().btagscore>DEFAULT_BTAGCUT).at(ieta).at(ipt)->GetRandom();
 	smearedJets.back()*=rando;
       }
   }
@@ -345,11 +345,11 @@ void GleanTemplatesFromFile(TFile* ftemplate, TFile* fprior)
   std::vector<TGraph*> gGenMhtDPhiTemplatesB3;
   gGenMhtDPhiTemplatesB3.push_back(gNull);
 
-string constraintName = "HardMetPt";
-//string constraintName = "Mht";
+//string constraintName = "HardMetPt";
+string constraintName = "Mht";
 ////constraintName = "MetSignificance";
-string constraintPhiName = "HardMetDPhi";
-//string constraintPhiName = "MhtPhi";
+//string constraintPhiName = "HardMetDPhi";
+string constraintPhiName = "MhtPhi";
 //constraintPhiName = "HardMetPhi";///
 
   for(unsigned int iht = 1; iht < templateHtAxis->GetNbins()+2; iht++)
@@ -412,12 +412,12 @@ void GleanTemplatesFromFile(TFile* ftemplate)
 	GleanTemplatesFromFile(ftemplate, ftemplate);
 }
 
-std::vector<double> createMatchedCsvVector(std::vector<TLorentzVector> GenJets, std::vector<UsefulJet> RecoJets)
+std::vector<double> createMatchedBtagscoreVector(std::vector<TLorentzVector> GenJets, std::vector<UsefulJet> RecoJets)
 {
-  std::vector<double> matchedCsvs;
+  std::vector<double> matchedBtagscores;
   for (unsigned int ig = 0; ig<GenJets.size(); ig++)
     {
-      double csv = 0;
+      double btagscore = 0;
       double dR = 0.6;
       for (unsigned int ir = 0; ir<RecoJets.size(); ir++)
 	{
@@ -425,13 +425,13 @@ std::vector<double> createMatchedCsvVector(std::vector<TLorentzVector> GenJets, 
 	  if (dR_<dR)
 	    {
 	      dR=dR_;
-	      csv = RecoJets[ir].csv;
+	      btagscore = RecoJets[ir].btagscore;
 	    }
 	  if (dR_ < 0.25) break;
 	}
-      matchedCsvs.push_back(csv);
+      matchedBtagscores.push_back(btagscore);
     }
-  return matchedCsvs;
+  return matchedBtagscores;
 }
 
 #endif

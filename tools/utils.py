@@ -15,7 +15,7 @@ epsi = "#scale[1.3]{#font[122]{e}}"
 epsilon = 0.0001
 
 binning = {}
-binning['Met']=[95,0,950]
+binning['Met']=[45,0,450]
 binning['HardMet']=binning['Met']
 binning['MetSignificance']=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 4.0, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 5.0, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 6.0, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9, 7.0, 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8, 7.9, 8.0, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8, 8.9, 9.0, 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 9.8, 9.9, 10.0, 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8, 10.9, 11.0, 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8, 11.9, 12.0]
 binning['NJets']=[10,0,10]
@@ -40,8 +40,8 @@ binning['BinNumber'] = [34,0,34]
 binning['MinDeltaPhi'] = binning['DPhi1']
 
 binningUser = dict(binning)
-binningUser['HardMet'] = [30,20,320]
-binningUser['HardMet'] = [15,0,300]
+binningUser['HardMet'] = [0,10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,170,180,200,250,450]
+#binningUser['HardMet'] = [15,0,300]
 #binningUser['HardMet'] = [30,20,920]
 
 binning_templates = {}
@@ -215,6 +215,8 @@ def namewizard(name):
 		return r'R^{*}'
 	if 'DPhiMetSumTags' == name:
 		return r'#Delta#phi^{*}'
+	if 'St' == name:
+		return r'H_{T}'    
 	return name
 
 
@@ -291,7 +293,7 @@ datamc = 'Data'
 def stamp(lumi='35.9', showlumi = False, WorkInProgress = True):    
 	tl.SetTextFont(cmsTextFont)
 	tl.SetTextSize(0.98*tl.GetTextSize())
-	tl.DrawLatex(0.135,0.915, 'Delphes')
+	tl.DrawLatex(0.135,0.915, 'CMS')
 	tl.SetTextFont(extraTextFont)
 	tl.SetTextSize(1.0/0.98*tl.GetTextSize())
 	xlab = 0.213
@@ -300,30 +302,12 @@ def stamp(lumi='35.9', showlumi = False, WorkInProgress = True):
 	tl.SetTextFont(regularfont)
 	tl.SetTextSize(0.81*tl.GetTextSize())    
 	thingy = ''
-	if showlumi: thingy+='#sqrt{s}=14 TeV, L = '+str(lumi)+' fb^{-1}'
+	if showlumi: thingy+='#sqrt{s}=13 TeV ('+str(lumi)+' fb^{-1})'
 	xthing = 0.6202
 	if not showlumi: xthing+=0.13
 	tl.DrawLatex(xthing,0.915,thingy)
 	tl.SetTextSize(1.0/0.81*tl.GetTextSize())  
 	
-	
-def stamp2(lumi='35.9', showlumi = False):    
-	tl.SetTextFont(cmsTextFont)
-	tl.SetTextSize(0.98*tl.GetTextSize())
-	tl.DrawLatex(0.1,0.91, 'Delphes')
-	tl.SetTextFont(extraTextFont)
-	tl.SetTextSize(1.0/0.98*tl.GetTextSize())
-	xlab = 0.213
-	tl.DrawLatex(xlab,0.91, ('MC' in datamc)*' simulation')
-	tl.SetTextFont(regularfont)
-	tl.SetTextSize(0.81*tl.GetTextSize())    
-	thingy = ''
-	if showlumi: thingy+='#sqrt{s}=14 TeV, L = '+str(lumi)+' fb^{-1}'
-	xthing = 0.6202
-	if not showlumi: xthing+=0.13
-	tl.DrawLatex(xthing,0.91,thingy)
-	tl.SetTextSize(1.0/0.81*tl.GetTextSize()) 
-
 
 def calcTrackIso(trk, tracks):
 	ptsum =  -trk.pt()
@@ -643,12 +627,12 @@ def FabDrawSystyRatio(cGold,leg,hObserved,hComponents,datamc='mc',lumi=35.9, tit
 def stampFab(lumi = 'arbitrary',datamc='MC'):
 	tl.SetTextFont(cmsTextFont)
 	tl.SetTextSize(1.6*tl.GetTextSize())
-	tl.DrawLatex(0.152,0.82, 'Delphes')
+	tl.DrawLatex(0.152,0.82, 'CMS')
 	tl.SetTextFont(extraTextFont)
 	tl.DrawLatex(0.14,0.74, ('MC' in datamc)*' simulation')
 	tl.SetTextFont(regularfont)
-	if lumi=='': tl.DrawLatex(0.62,0.82,'#sqrt{s} = 14 TeV')
-	else: tl.DrawLatex(0.5,0.82,'#sqrt{s} = 14 TeV, L = '+str(lumi)+' fb^{-1}')
+	if lumi=='': tl.DrawLatex(0.62,0.82,'#sqrt{s} = 13 TeV')
+	else: tl.DrawLatex(0.5,0.82,'#sqrt{s} = 13 TeV, L = '+str(lumi)+' fb^{-1}')
 	#tl.DrawLatex(0.64,0.82,'#sqrt{s} = 13 TeV')#, L = '+str(lumi)+' fb^{-1}')	
 	tl.SetTextSize(tl.GetTextSize()/1.6)
 	
@@ -755,3 +739,45 @@ def nicelabel(label):
 		label_ = label_[:numberloc]+', '+label_[numberloc:]
 		label_ = label_.replace(', )',')')
 	return label_    
+
+def passQCDHighMETFilter(t):
+    metvec = mkmet(t.MET, t.METPhi)
+    for ijet, jet in enumerate(t.Jets):
+        if not (jet.Pt() > 200): continue
+        if not (t.Jets_muonEnergyFraction[ijet]>0.5):continue 
+        if (abs(jet.DeltaPhi(metvec)) > (3.14159 - 0.4)): return False
+    return True
+
+
+def passQCDHighMETFilter2(t):
+    if len(t.Jets)>0:
+        metvec = TLorentzVector()
+        metvec.SetPtEtaPhiE(t.MET, 0, t.METPhi,0)
+        if abs(t.Jets[0].DeltaPhi(metvec))>(3.14159-0.4) and t.Jets_neutralEmEnergyFraction[0]<0.03:
+            return False
+    return True
+
+def passesUniversalSelection(t):
+    if not ( t.NVtx>0): return False #bool(t.JetID) and 
+    if not (t.NElectrons==0 and t.NMuons==0 and t.isoElectronTracks==0 and t.isoMuonTracks==0 and t.isoPionTracks==0): return False
+    if not  passQCDHighMETFilter(t): return False
+    if not passQCDHighMETFilter2(t): return False
+    if not t.PFCaloMETRatio<5: return False
+    #featuring:
+    #if not t.globalTightHalo2016Filter: return False ##this alone was good # only these comments weren't saved on last submission
+    if not bool(t.globalSuperTightHalo2016Filter): return False
+    if not bool(t.HBHENoiseFilter): return False    
+    if not bool(t.HBHEIsoNoiseFilter): return False
+    if not bool(t.eeBadScFilter): return False      
+    if not bool(t.BadChargedCandidateFilter): return False
+    if not bool(t.BadPFMuonFilter): return False
+    if not bool(t.CSCTightHaloFilter): return False
+    if not bool(t.EcalDeadCellTriggerPrimitiveFilter): return False      ##I think this one makes a sizeable difference    
+    if not bool(t.ecalBadCalibReducedExtraFilter): return False
+    if not bool(t.ecalBadCalibReducedFilter): return False
+    '''#first half filters up edge    
+    #first half filters low edge           
+    ####if not t.ecalBadCalibFilter: return False #this says it's deprecated
+
+    '''#second half filters low edge               
+    return True

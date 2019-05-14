@@ -13,12 +13,12 @@
 
 //using namespace std;
 
-double BTAG_CSV = 0.5;
+double DEFAULT_BTAGCUT = 0.5;
 
 struct UsefulJet
 { 
   TLorentzVector tlv;
-  double csv;
+  double btagscore;
   double originalPt;
   bool operator < (const UsefulJet& jet) const 
   {
@@ -49,8 +49,8 @@ struct UsefulJet
     tlv -= other;
     return *this;
   }
-UsefulJet(TLorentzVector tlv_ = TLorentzVector(), double csv_ = 0, double originalPt_=0) :
-  tlv(tlv_), csv(csv_), originalPt(originalPt_) {}
+UsefulJet(TLorentzVector tlv_ = TLorentzVector(), double btagscore_ = 0, double originalPt_=0) :
+  tlv(tlv_), btagscore(btagscore_), originalPt(originalPt_) {}
   double Pt() const{return tlv.Pt();}
   double Px() const{return tlv.Px();}
   double Py() const{return tlv.Py();}
@@ -58,11 +58,11 @@ UsefulJet(TLorentzVector tlv_ = TLorentzVector(), double csv_ = 0, double origin
   double Eta()const{return tlv.Eta();}
   double Phi() const{return tlv.Phi();}
   double E() const{return tlv.E();}
-  double Csv() const{return csv;}
+  double Btagscore() const{return btagscore;}
   double OriginalPt() const{return originalPt;}
   UsefulJet Clone()
   {
-    UsefulJet newjet(tlv, csv, originalPt);
+    UsefulJet newjet(tlv, btagscore, originalPt);
     return newjet;
   }
   double DeltaR(const UsefulJet& other)
@@ -136,13 +136,13 @@ UsefulJet operator-(UsefulJet first, // parameter as value, move-construct (or e
 }
 
 
-std::vector<UsefulJet> CreateUsefulJetVector(std::vector<TLorentzVector> tlvVec, std::vector<double> csvVec){
-  if (tlvVec.size()!=csvVec.size()) cout << "warning, size issue!" << endl;
+std::vector<UsefulJet> CreateUsefulJetVector(std::vector<TLorentzVector> tlvVec, std::vector<double> btagscoreVec, double etathresh = 5.0){
+  if (tlvVec.size()!=btagscoreVec.size()) cout << "warning, size issue!" << endl;
   std::vector<UsefulJet> usefulJetVector;
   for (unsigned int i = 0; i< tlvVec.size(); i++)
     {
-      if (!(fabs(tlvVec[i].Eta())<5)) continue;
-      UsefulJet jet = UsefulJet(tlvVec[i], csvVec[i], tlvVec[i].Pt());
+      if (!(fabs(tlvVec[i].Eta())<etathresh)) continue;
+      UsefulJet jet = UsefulJet(tlvVec[i], btagscoreVec[i], tlvVec[i].Pt());
       usefulJetVector.push_back(jet);
     }
   return usefulJetVector;
@@ -221,24 +221,13 @@ std::vector<UsefulJet> VetoOnUnmatchedJets100(std::vector<UsefulJet> uRecVec, st
 }
 
 
-int getAverageCsv(std::vector<UsefulJet> jets, double thresh){
-  int njets = 0;
-  double csv_ave = 0;
-  for (unsigned int j=0; j<jets.size(); j++){
-    if (!(jets[j].Pt()>thresh)) continue;
-    if (!(abs(jets[j].Eta())<2.4)) continue;
-    njets+=1;
-    csv_ave+=jets[j].csv;
-  }
-  return csv_ave/njets;
-}
 
-std::vector<UsefulJet> CreateUsefulJetVector(std::vector<TLorentzVector> tlvVec){
+std::vector<UsefulJet> CreateUsefulJetVector(std::vector<TLorentzVector> tlvVec, float etathresh=5.0){
   std::vector<UsefulJet> usefulJetVector;
   for (unsigned int i = 0; i< tlvVec.size(); i++)
     {
       if (!(tlvVec[i].Pt()>2)) continue;
-      if (!(fabs(tlvVec[i].Eta())<5)) continue;
+      if (!(fabs(tlvVec[i].Eta())<etathresh)) continue;
       UsefulJet jet = UsefulJet(tlvVec[i], 0, tlvVec[i].Pt());
       usefulJetVector.push_back(jet);
     }
@@ -293,12 +282,12 @@ double getHt(std::vector<TLorentzVector> jets, double thresh, double etathresh =
   return ht;
 }
 
-int countBJets(std::vector<UsefulJet> jets, double thresh, double btagvalue=BTAG_CSV){
+int countBJets(std::vector<UsefulJet> jets, double thresh, double btagvalue=DEFAULT_BTAGCUT){
   int count = 0;
   for (unsigned int j=0; j<jets.size(); j++){
     if (!(jets.at(j).Pt()>thresh)) continue;
     if (!(abs(jets.at(j).Eta())<2.4)) continue;;
-    if (!(jets.at(j).csv>BTAG_CSV)) continue;
+    if (!(jets.at(j).btagscore>DEFAULT_BTAGCUT)) continue;
     count+=1;
   }
   return count;
@@ -413,14 +402,71 @@ TLorentzVector calcMinDr(std::vector<UsefulJet> collection, UsefulJet obj, doubl
     return bestmatch;
 }
 
-UsefulJet getLeadingGenBJet(std::vector<UsefulJet> GenJets, std::vector<UsefulJet> RecoJets, double BTAG_CSV)
+TLorentzVector getClosestObject(std::vector<UsefulJet> collection, UsefulJet obj, double goodenough=0.4)
+{
+	
+    double minDr = 9.9;
+    TLorentzVector bestmatch;
+    for (int ithing=0; ithing<collection.size(); ithing++)
+    	{
+    		UsefulJet thing = collection[ithing];
+    		double dr = obj.DeltaR(thing);
+        	if (dr<minDr)
+        		{
+        			minDr = dr;
+        			bestmatch = thing.tlv;
+        			if (minDr<goodenough) return bestmatch;
+        		}
+        }
+    return bestmatch;
+}
+
+TLorentzVector getClosestObject(std::vector<TLorentzVector> collection, UsefulJet obj, double goodenough=0.4)
+{
+	
+    double minDr = 9.9;
+    TLorentzVector bestmatch;
+    for (int ithing=0; ithing<collection.size(); ithing++)
+    	{
+    		TLorentzVector thing = collection[ithing];
+    		double dr = obj.DeltaR(thing);
+        	if (dr<minDr)
+        		{
+        			minDr = dr;
+        			bestmatch = thing;
+        			if (minDr<goodenough) return bestmatch;
+        		}
+        }
+    return bestmatch;
+}
+
+TLorentzVector getClosestObject(std::vector<TLorentzVector> collection, TLorentzVector obj, double goodenough=0.4)
+{
+	
+    double minDr = 9.9;
+    TLorentzVector bestmatch;
+    for (int ithing=0; ithing<collection.size(); ithing++)
+    	{
+    		TLorentzVector thing = collection[ithing];
+    		double dr = obj.DeltaR(thing);
+        	if (dr<minDr)
+        		{
+        			minDr = dr;
+        			bestmatch = thing;
+        			if (minDr<goodenough) return bestmatch;
+        		}
+        }
+    return bestmatch;
+}
+
+UsefulJet getLeadingGenBJet(std::vector<UsefulJet> GenJets, std::vector<UsefulJet> RecoJets, double DEFAULT_BTAGCUT)
 {
     for (int igj=0; igj<GenJets.size(); igj++){
     	UsefulJet gjet = GenJets[igj];
     	for (int irj=0; irj<RecoJets.size(); irj++){
     		UsefulJet rjet = RecoJets[irj];
             double dR_ = gjet.tlv.DeltaR(rjet.tlv);
-            if (dR_<0.4 && rjet.csv>BTAG_CSV) return gjet;
+            if (dR_<0.4 && rjet.btagscore>DEFAULT_BTAGCUT) return gjet;
             }
         }
     UsefulJet emptyvec = UsefulJet();
