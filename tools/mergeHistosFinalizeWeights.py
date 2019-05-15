@@ -23,7 +23,7 @@ for keyword in keywords:
     if not istest: os.system(command)    
     fuw = TFile('unwghtd'+keyword+'.root')
     fw = TFile('wghtd'+keyword+'.root', 'recreate')
-    hHt = fuw.Get('hSt')
+    hHt = fuw.Get('hHt')
     nentries = hHt.GetEntries()
     keys = fuw.GetListOfKeys()
     for key in keys:
