@@ -1,6 +1,6 @@
 # BayesQcd
 
-This is the package for running rebalance and smear on Ra2/b-style ntuples while on an LPC machine. 
+This is the package for running a photon-friendly rebalance and smear implementation on Ra2/b-style ntuples while on an LPC machine. 
 ## Set up code in a nobackup area (modify appropriately if you forked the repo)
 
 ```
@@ -15,8 +15,8 @@ mkdir pdfs
 mkdir pdfs/ClosureTests
 ```
 
-### run the rebalance and smear code
-I'm skipping the steps needed to create the prior and smearing templates
+### Run the rebalance and smear code
+I'm skipping the steps needed to create the prior and smearing templates. This command will run rebalance and smear and create histograms for the "truth" and "method" distributions with 10,000 events in one GJets file:
 
 ```
 python tools/MaximizePosteriorTM.py --fnamekeyword Summer16v3.GJets_DR-0p4_HT-600 --quickrun True
@@ -31,7 +31,7 @@ python tools/closurePlotter.py <output file from previous step>
 This creates pdfs and a root file with canvases. You'll notice your histograms will likely suffer from low statistics, which is why it's good to use the batch system heavily when doing this (iteration time can be about 20 minutes to an hour). 
 
 
-### submit jobs to the condor batch system:
+### Submit jobs to the condor batch system
 
 This script defaults to submitting one job per input file. Assuming you have a valid proxy, the following script will initiate a large submission. Notice the first command below cleans up the jobs directory. It is important to do this before you submit. The script also suggests you to delete the output directory where your root files are returned so it can have a clean start. 
 
