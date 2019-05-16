@@ -24,7 +24,7 @@ norm = 1.0
 
 for key in keys:
     if not ('GenSmeared' in key.GetName() or 'RplusS' in key.GetName() or 'Rebalanced' in key.GetName()): continue
-    if not 'RplusS' in key.GetName(): continue    
+    #if not 'RplusS' in key.GetName(): continue    
     kinvar = key.GetName().replace('GenSmeared','').replace('Rebalanced','').replace('RplusS','')
     selection = kinvar[1:kinvar.find('_')]
     kinvar = kinvar[kinvar.find('_')+1:]

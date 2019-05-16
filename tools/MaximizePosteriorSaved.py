@@ -15,7 +15,6 @@ cutoff = 15.0
 isdata = False
 rebalancedMetCut = 150
 cleanrecluster = False
-useMediumPho = False
 
 debugmode = False
 sayalot = False
@@ -232,17 +231,18 @@ for ientry in range(n2process):
         tlvpho = TLorentzVector()
         tlvpho.SetPtEtaPhiE(pho.Pt(), pho.Eta(), pho.Phi(), pho.E())        
         acme_objects.push_back(tlvpho)
-        if useMediumPho: 
-          if abs(pho.Eta())<1.48:   
+        '''      
+        if abs(pho.Eta())<1.48:   
             if not (c.Photons_hadTowOverEM[ipho]<0.0396  and c.Photons_sigmaIetaIeta[ipho]<0.01022 and c.Photons_pfChargedIsoRhoCorr[ipho]<0.441 and c.Photons_pfNeutralIsoRhoCorr[ipho]<(2.725+0.0148*c.Photons[ipho].Pt()+0.000017*pow(c.Photons[ipho].Pt(),2)) and c.Photons_pfGammaIsoRhoCorr[ipho]<(2.571+0.0047*c.Photons[ipho].Pt())): continue
-          if abs(pho.Eta())>=1.48:
+        if abs(pho.Eta())>=1.48:
             if not (c.Photons_hadTowOverEM[ipho]<0.0219 and c.Photons_sigmaIetaIeta[ipho]<0.03001  and c.Photons_pfChargedIsoRhoCorr[ipho]< 0.442  and c.Photons_pfNeutralIsoRhoCorr[ipho]<(1.715+0.0163*c.Photons[ipho].Pt()+0.000014*pow(c.Photons[ipho].Pt(),2)) and c.Photons_pfGammaIsoRhoCorr[ipho]<(3.863+0.0034*c.Photons[ipho].Pt())): continue
         if sayalot:
             print ientry, 'acme photon', pho.Pt(), pho.Eta(), pho.Phi()
             print 'Photons_genMatched', c.Photons_genMatched[ipho]
             print 'Photons_nonPrompt', bool(c.Photons_nonPrompt[ipho])
             print 'Photons_pfGammaIsoRhoCorr', c.Photons_pfGammaIsoRhoCorr[ipho]
-
+            a=2
+        '''
         #if not c.Photons_genMatched[ipho]: continue
         #if bool(c.Photons_nonPrompt[ipho]): continue
         if bool(c.Photons_hasPixelSeed[ipho]): continue                	
