@@ -10,7 +10,7 @@ import time
 ###stuff that would be nice in a config file
 mhtjetetacut = 5.0 # also needs be be changed in UsefulJet.h
 lhdHardMetJetPtCut = 15.0
-AnHardMetJetPtCut = 30.0
+AnHardMetJetPtCut = 25.0
 cutoff = 15.0
 isdata = False
 rebalancedMetCut = 150
@@ -40,6 +40,8 @@ parser.add_argument("-bootstrap", "--bootstrap", type=str, default='0',help="boo
 parser.add_argument("-jersf", "--JerUpDown", type=str, default='Nom',help="JER scale factor (JerNom, JerUp, ...)")
 parser.add_argument("-forcetemplates", "--forcetemplates", type=str, default='',help="you can use this to override the template choice")
 parser.add_argument("-quickrun", "--quickrun", type=bool, default=False,help="short run")
+parser.add_argument("-debugmode", "--debugmode", type=bool, default=False,help="short run")
+parser.add_argument("-sayalot", "--sayalot", type=bool, default=False,help="short run")
 args = parser.parse_args()
 fnamekeyword = args.fnamekeyword
 inputFiles = glob(fnamekeyword)
@@ -48,7 +50,10 @@ JerUpDown = args.JerUpDown
 forcetemplates = args.forcetemplates
 verbosity = args.verbosity
 printevery = args.printevery
+debugmode = args.debugmode
+printevery = args.printevery
 quickrun = args.quickrun
+sayalot = args.sayalot
 if quickrun: 
     n2process = 10000
     if 'T2' in fnamekeyword: n2process = 20000
@@ -97,11 +102,12 @@ regionCuts = {}
 pi = 3.14159
 Inf = 9999
 #varlist =                            ['Ht',    'HardMet','NJets','BTags','MinDPhi','NPhotons', 'MetSignificance']
-regionCuts['NoCuts1Pho']                = [[0,Inf],  [0,Inf], [0,Inf],[0,Inf],[-Inf,Inf],    [1,Inf],  [-1,Inf]]
-regionCuts['Baseline1Pho']          = [[200,Inf],[200,Inf],[0,Inf],[0,Inf],[0.0,Inf],    [1,1],    [-1,Inf]]
-regionCuts['Baseline2Pho']          = [[200,Inf],[200,Inf],[0,Inf],[0,Inf],[0.0,Inf],    [2,Inf],  [-1,Inf]]
-regionCuts['BaselineHighHt1Pho']          = [[600,Inf],[200,Inf],[0,Inf],[0,Inf],[0.0,Inf],    [1,1],    [-1,Inf]]
-regionCuts['BaselineHighHt2Pho']          = [[600,Inf],[200,Inf],[0,Inf],[0,Inf],[0.0,Inf],    [2,Inf],  [-1,Inf]]
+regionCuts['Baseline1Pho']          = [[0,Inf],[150,Inf],[0,Inf],[0,Inf],[0.0,Inf],    [1,1],    [-1,Inf]]
+regionCuts['Baseline2Pho']          = [[0,Inf],[150,Inf],[0,Inf],[0,Inf],[0.0,Inf],    [2,Inf],  [-1,Inf]]
+regionCuts['LdpBaseline1Pho']          = [[0,Inf],[150,Inf],[0,Inf],[0,Inf],[0.0,0.3],    [1,1],    [-1,Inf]]
+regionCuts['LdpBaseline2Pho']          = [[0,Inf],[150,Inf],[0,Inf],[0,Inf],[0.0,0.3],    [2,Inf],  [-1,Inf]]
+regionCuts['HighHtBaseline1Pho']          = [[200,Inf],[150,Inf],[0,Inf],[0,Inf],[0.0,Inf],    [1,1],    [-1,Inf]]
+regionCuts['HighHtBaseline2Pho']          = [[200,Inf],[150,Inf],[0,Inf],[0,Inf],[0.0,Inf],    [2,Inf],  [-1,Inf]]
 
 #################
 # Load in chain #
@@ -208,7 +214,8 @@ for ientry in range(n2process):
 
     if debugmode:
         #if not ientry>122000: continue
-        if not ientry in [68165, 172519]: continue#,30548,49502]: continue
+        if ientry in [298]: continue
+        #if not ientry in [1839, 5348]: continue#,30548,49502]: continue
         a = 2
     c.GetEntry(ientry)
 
@@ -313,6 +320,16 @@ for ientry in range(n2process):
     if cleanrecluster: recojets_ = CreateUsefulJetVector(c.Jetsclean, c.Jetsclean_bJetTagDeepCSVBvsAll)
     else: recojets_ = CreateUsefulJetVector(c.Jets, c.Jets_bJetTagDeepCSVBvsAll)
 
+
+
+    recojets_.clear()
+    for ijet, jet in enumerate(c.Jets):
+        if not (jet.Pt()>2 and abs(jet.Eta())<5.0): continue
+        recojets_.push_back(UsefulJet(jet, c.Jets_bJetTagDeepCSVBvsAll[ijet], float(int(bool(c.Jets_ID[ijet])))))
+        if sayalot and jet.Pt()>AnHardMetJetPtCut:
+            print 'ijet original', ijet, 'pt, eta, phi', jet.Pt(), jet.Eta(), jet.Phi(), 'Jets_bJetTagDeepCSVBvsAll', c.Jets_bJetTagDeepCSVBvsAll[ijet], 'Jets_bDiscriminatorCSV', c.Jets_bDiscriminatorCSV[ijet], 'Jets_chargedEmEnergyFraction', c.Jets_chargedEmEnergyFraction[ijet], 'Jets_chargedHadronEnergyFraction', c.Jets_chargedHadronEnergyFraction[ijet], 'Jets_chargedMultiplicity', c.Jets_chargedMultiplicity[ijet], ', Jets_multiplicity', c.Jets_multiplicity[ijet], ', Jets_partonFlavor', c.Jets_partonFlavor[ijet] , ', Jets_photonEnergyFraction', c.Jets_photonEnergyFraction[ijet] , ', Jets_photonMultiplicity', c.Jets_photonMultiplicity[ijet], 'Jets_hadronFlavor', c.Jets_hadronFlavor[ijet], 'Jets_hadronFlavor', c.Jets_hadronFlavor[ijet], 'Jets_ID', bool(c.Jets_ID[ijet])
+
+            
     if is2017: # ecal noise treatment
         recojets.clear()
         for ijet, jet in enumerate(c.Jets):
@@ -326,24 +343,33 @@ for ientry in range(n2process):
     #build up the vector of jets using TLorentzVectors; 
     #this is where you have to interface with the input format you're using
 
-    nMatchedAcmeJetPairs = 0
+    nMatchedAcmeOuterPairs = 0
+    nMatchedAcmeInnerPairs = 0
+    passesJetId = True
     for ijet, jet in enumerate(recojets_):
         if not jet.Pt()>15: continue
         if not abs(jet.Eta())<5: continue
         closestAcme = getClosestObject(acme_objects, jet, 0.1)
         if jet.DeltaR(closestAcme)<0.6:
-            nMatchedAcmeJetPairs+=1
-            if jet.DeltaR(closestAcme)<0.1:
-                if sayalot: print 'reducing pT of jet with pT, eta', jet.Pt(), jet.Eta(), jet.DeltaR(acme_objects[0])
+            nMatchedAcmeOuterPairs+=1
+            if jet.DeltaR(closestAcme)<0.2:
+                nMatchedAcmeInnerPairs+=1
+                if sayalot: print 'skipping reco jet with pT, eta', jet.Pt(), jet.Eta(), jet.DeltaR(acme_objects[0])
                 continue
         #    #jet.tlv-=closestAcme
+        if jet.Pt()>AnHardMetJetPtCut and jet.OriginalPt()<0.5: 
+            passesJetId = False
+            print 'failed jet id'
+            break
         ujet = UsefulJet(jet.tlv, jet.btagscore)        
         recojets.push_back(ujet)
-        
+
+    if not passesJetId: continue
     if cleanrecluster:
         if not nMatchedAcmeJetParis==0: continue
     else:
-        if not nMatchedAcmeJetPairs==len(acme_objects): continue
+        if not nMatchedAcmeInnerPairs==len(acme_objects): continue
+        if not nMatchedAcmeOuterPairs==nMatchedAcmeInnerPairs: continue
 
     genjets_ = vector('TLorentzVector')()
     #build up the vector of jets using TLorentzVectors; 
@@ -355,7 +381,7 @@ for ientry in range(n2process):
         tlvjet.SetPtEtaPhiE(jet.Pt(), jet.Eta(), jet.Phi(), jet.Pt()*TMath.CosH(jet.Eta()))
         closestAcme = getClosestObject(acme_objects, tlvjet, 0.1)
         if tlvjet.DeltaR(closestAcme)<0.1: 
-            if sayalot: print 'reducing pT of gen jet with pT, eta', tlvjet.Pt(), tlvjet.Eta(), '(',tlvjet.DeltaR(acme_objects[0]),')'
+            if sayalot: print 'ueberspringen jet with pT, eta', tlvjet.Pt(), tlvjet.Eta(), '(',tlvjet.DeltaR(acme_objects[0]),')'
             #tlvjet-=closestAcme
             continue
         genjets_.push_back(tlvjet)
@@ -386,7 +412,7 @@ for ientry in range(n2process):
     tHardMetPt, tHardMetPhi = tHardMetVec.Pt(), tHardMetVec.Phi()
 
 
-    if  not abs(MetVec.Pt()-tHardMetVec.Pt())<100:
+    if  not abs(MetVec.Pt()-tHardMetVec.Pt())<60:
             print ientry, 'met/mht consistency', abs(MetVec.Pt()-tHardMetVec.Pt())
             continue
     #tHardMhtPt, tHardMhtPhi = tHardMhtVec.Pt(), tHardMhtVec.Phi()
@@ -432,11 +458,11 @@ for ientry in range(n2process):
     tBTags = countBJets(recojets,AnHardMetJetPtCut)
 
     if debugmode:
-        if not tHardMetPt>450: continue
+        if not tHardMetPt>100 and tHardMetPt<130: continue
 
     fv = [tHt,tHardMetPt,tNJets,tBTags,mindphi, int(recophotons.size()),tMetSignificance]
 
-    if tHardMetPt>250: 
+    if tHardMetPt>100: 
         print ientry, 'fv', fv
             
     for regionkey in regionCuts:
@@ -487,7 +513,7 @@ for ientry in range(n2process):
     if hope: fillth1(hPassFit, fv[3], weight)
 
     nsmears = 100*bootupfactor
-    weight = c.CrossSection / nsmears
+    weight = c.puWeight * c.CrossSection / nsmears
 
     for i in range(nsmears):
 
@@ -555,12 +581,14 @@ for ientry in range(n2process):
         print 'genjets'
         for ijet, jet in enumerate(genjets):
             print ijet, jet.Pt(), jet.Eta(), jet.Phi()
+            matchedreco = calcMinDr(recojets, jet, 0.01)
+            print '....matched reco pt', matchedreco.Pt(), matchedreco.Eta(), matchedreco.Phi(), 'dr', matchedreco.DeltaR(jet.tlv)            
         print 'recoHardMet', tHardMetVec.Pt(), tHardMetVec.Phi()
         print 'recoHardMetUppy', (tHardMetVec+acme_objects[0]).Pt()
         print 'recoHardMetDowny', (tHardMetVec-acme_objects[0]).Pt()        
         print 'recojets:'
         for ijet, jet in enumerate(recojets):
-            print ijet, jet.Pt(), jet.Eta(), jet.Phi()
+            print ijet, jet.Pt(), jet.Eta(), jet.Phi(), 'btag=', jet.btagscore
             matchedgen = calcMinDr(genjets, jet, 0.01)
             print '....matchedgenjet pt', matchedgen.Pt(), matchedgen.Eta(), matchedgen.Phi(), 'dr', matchedgen.DeltaR(jet.tlv)
             matchedacme = calcMinDr(acme_objects, jet, 0.01)
