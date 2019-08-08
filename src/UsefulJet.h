@@ -19,7 +19,8 @@ struct UsefulJet
 { 
   TLorentzVector tlv;
   double btagscore;
-  double originalPt;
+  double jetId;
+  int originalIdx;
   bool operator < (const UsefulJet& jet) const 
   {
     return (tlv.Pt() > jet.tlv.Pt());
@@ -49,8 +50,8 @@ struct UsefulJet
     tlv -= other;
     return *this;
   }
-UsefulJet(TLorentzVector tlv_ = TLorentzVector(), double btagscore_ = 0, double originalPt_=0) :
-  tlv(tlv_), btagscore(btagscore_), originalPt(originalPt_) {}
+UsefulJet(TLorentzVector tlv_ = TLorentzVector(), double btagscore_ = 0, double jetId_=0, int originalIdx_=0) :
+  tlv(tlv_), btagscore(btagscore_), jetId(jetId_), originalIdx(originalIdx_) {}
   double Pt() const{return tlv.Pt();}
   double Px() const{return tlv.Px();}
   double Py() const{return tlv.Py();}
@@ -59,10 +60,11 @@ UsefulJet(TLorentzVector tlv_ = TLorentzVector(), double btagscore_ = 0, double 
   double Phi() const{return tlv.Phi();}
   double E() const{return tlv.E();}
   double Btagscore() const{return btagscore;}
-  double OriginalPt() const{return originalPt;}
+  double JetId() const{return jetId;}
+  int OriginalIdx() const{return originalIdx;}
   UsefulJet Clone()
   {
-    UsefulJet newjet(tlv, btagscore, originalPt);
+    UsefulJet newjet(tlv, btagscore, jetId, originalIdx);
     return newjet;
   }
   double DeltaR(const UsefulJet& other)
@@ -143,6 +145,7 @@ std::vector<UsefulJet> CreateUsefulJetVector(std::vector<TLorentzVector> tlvVec,
     {
       if (!(fabs(tlvVec[i].Eta())<etathresh)) continue;
       UsefulJet jet = UsefulJet(tlvVec[i], btagscoreVec[i], tlvVec[i].Pt());
+      jet.originalIdx = i;
       usefulJetVector.push_back(jet);
     }
   return usefulJetVector;
@@ -221,7 +224,6 @@ std::vector<UsefulJet> VetoOnUnmatchedJets100(std::vector<UsefulJet> uRecVec, st
 }
 
 
-
 std::vector<UsefulJet> CreateUsefulJetVector(std::vector<TLorentzVector> tlvVec, float etathresh=5.0){
   std::vector<UsefulJet> usefulJetVector;
   for (unsigned int i = 0; i< tlvVec.size(); i++)
@@ -229,6 +231,7 @@ std::vector<UsefulJet> CreateUsefulJetVector(std::vector<TLorentzVector> tlvVec,
       if (!(tlvVec[i].Pt()>2)) continue;
       if (!(fabs(tlvVec[i].Eta())<etathresh)) continue;
       UsefulJet jet = UsefulJet(tlvVec[i], 0, tlvVec[i].Pt());
+      jet.originalIdx = i;
       usefulJetVector.push_back(jet);
     }
   return usefulJetVector;
@@ -403,18 +406,16 @@ TLorentzVector calcMinDr(std::vector<UsefulJet> collection, UsefulJet obj, doubl
 }
 
 TLorentzVector getClosestObject(std::vector<UsefulJet> collection, UsefulJet obj, double goodenough=0.4)
-{
-	
+{       
     double minDr = 9.9;
     TLorentzVector bestmatch;
+    bestmatch.SetPtEtaPhiE(1,7,1,1);
     for (int ithing=0; ithing<collection.size(); ithing++)
     	{
-    		UsefulJet thing = collection[ithing];
-    		double dr = obj.DeltaR(thing);
+    		UsefulJet thing = collection[ithing]; double dr = obj.DeltaR(thing);
         	if (dr<minDr)
         		{
-        			minDr = dr;
-        			bestmatch = thing.tlv;
+        			minDr = dr; bestmatch = thing.tlv;
         			if (minDr<goodenough) return bestmatch;
         		}
         }
@@ -426,6 +427,7 @@ TLorentzVector getClosestObject(std::vector<TLorentzVector> collection, UsefulJe
 	
     double minDr = 9.9;
     TLorentzVector bestmatch;
+    bestmatch.SetPtEtaPhiE(1,7,1,1);
     for (int ithing=0; ithing<collection.size(); ithing++)
     	{
     		TLorentzVector thing = collection[ithing];
@@ -445,6 +447,7 @@ TLorentzVector getClosestObject(std::vector<TLorentzVector> collection, TLorentz
 	
     double minDr = 9.9;
     TLorentzVector bestmatch;
+    bestmatch.SetPtEtaPhiE(1,9,1,1);
     for (int ithing=0; ithing<collection.size(); ithing++)
     	{
     		TLorentzVector thing = collection[ithing];

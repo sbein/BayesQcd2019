@@ -532,9 +532,9 @@ def FabDrawSystyRatio(cGold,leg,hObserved,hComponents,datamc='mc',lumi=35.9, tit
 		hComponentsUp.SetBinContent(ibin, hComponents[0].GetBinContent(ibin)+hComponents[0].GetBinError(ibin))
 		hComponentsDown.SetBinContent(ibin, hComponents[0].GetBinContent(ibin)-hComponents[0].GetBinError(ibin))		
 	
-	#hComponents[0].Draw('hist')
-	hComponentsUp.Draw('hist')
-	hComponentsDown.Draw('hist same')
+	hComponents[0].Draw('hist')
+	#hComponentsUp.Draw('hist')
+	#hComponentsDown.Draw('hist same')
 	for h in hComponents[1:]: 
 		print 'there are actually components here!'
 		h.Draw('hist same')
@@ -624,12 +624,12 @@ def FabDrawSystyRatio(cGold,leg,hObserved,hComponents,datamc='mc',lumi=35.9, tit
 	
 	return hRatio, [histoMethodFracErrorNom, histoMethodFracErrorUp, histoMethodFracErrorDown, hComponentsUp, hComponentsDown]
 	
-def stampFab(lumi = 'arbitrary',datamc='MC'):
+def stampFab(lumi = 'n/a',datamc='MC'):
 	tl.SetTextFont(cmsTextFont)
 	tl.SetTextSize(1.6*tl.GetTextSize())
 	tl.DrawLatex(0.152,0.82, 'CMS')
 	tl.SetTextFont(extraTextFont)
-	tl.DrawLatex(0.14,0.74, ('MC' in datamc)*' simulation')
+	tl.DrawLatex(0.14,0.74, ('MC' in datamc)*' simulation internal')
 	tl.SetTextFont(regularfont)
 	if lumi=='': tl.DrawLatex(0.62,0.82,'#sqrt{s} = 13 TeV')
 	else: tl.DrawLatex(0.48,0.82,'#sqrt{s} = 13 TeV ('+str(lumi)+' fb^{-1})')
@@ -760,7 +760,6 @@ def passQCDHighMETFilter2(t):
 
 def passesUniversalSelection(t):
     if not ( t.NVtx>0): return False #bool(t.JetID) and 
-    if not (t.NElectrons==0 and t.NMuons==0 and t.isoElectronTracks==0 and t.isoMuonTracks==0 and t.isoPionTracks==0): return False
     if not  passQCDHighMETFilter(t): return False
     if not passQCDHighMETFilter2(t): return False
     if not t.PFCaloMETRatio<5: return False
@@ -781,4 +780,8 @@ def passesUniversalSelection(t):
     ####if not t.ecalBadCalibFilter: return False #this says it's deprecated
 
     '''#second half filters low edge               
+    return True
+
+def passesHadronicSusySelection(t):
+    if not (t.NElectrons==0 and t.NMuons==0 and t.isoElectronTracks==0 and t.isoMuonTracks==0 and t.isoPionTracks==0): return False
     return True

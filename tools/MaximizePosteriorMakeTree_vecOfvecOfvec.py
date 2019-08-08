@@ -8,11 +8,11 @@ import numpy as np
 #from ra2blibs import *
 import time
 
-###stuff that would be nice in a config file:
-met4skim = 120
+met4skim = 100
+###stuff that would be nice in a config file
 mhtjetetacut = 5.0 # also needs be be changed in UsefulJet.h
 lhdHardMetJetPtCut = 15.0
-AnHardMetJetPtCut = 30.0
+AnHardMetJetPtCut = 25.0
 rebalancedMetCut = 150
 cleanrecluster = False
 useMediumPho = False
@@ -42,9 +42,7 @@ parser.add_argument("-forcetemplates", "--forcetemplates", type=str, default='',
 parser.add_argument("-quickrun", "--quickrun", type=bool, default=False,help="short run")
 parser.add_argument("-debugmode", "--debugmode", type=bool, default=False,help="short run")
 parser.add_argument("-sayalot", "--sayalot", type=bool, default=False,help="short run")
-parser.add_argument("-extended", "--extended", type=int, default=1,help="short run")
 args = parser.parse_args()
-extended = args.extended
 fnamekeyword = args.fnamekeyword
 inputFiles = glob(fnamekeyword)
 bootstrap = args.bootstrap
@@ -56,7 +54,6 @@ debugmode = args.debugmode
 printevery = args.printevery
 quickrun = args.quickrun
 sayalot = args.sayalot
-
 
 llhdHardMetThresh = 15
 mktree = True
@@ -94,7 +91,19 @@ if 'Run2018' in fnamekeyword or 'Autumn18' in fnamekeyword:
     is2018 = True
 
 BTag_Cut = BTAG_deepCSV
+#could try to veto events that have a non-isolated clean photon, say.
 
+#Dictionary list of signal regions
+regionCuts = {}
+pi = 3.14159
+Inf = 9999
+#varlist =                            ['Ht',    'HardMet','NJets','BTags','MinDPhi','NPhotons', 'Met']
+regionCuts['Baseline1Pho']          = [[0,Inf],[150,Inf],[0,Inf],[0,Inf],[0.0,Inf],    [1,1],    [-1,Inf]]
+regionCuts['Baseline2Pho']          = [[0,Inf],[150,Inf],[0,Inf],[0,Inf],[0.0,Inf],    [2,Inf],  [-1,Inf]]
+regionCuts['LdpBaseline1Pho']          = [[0,Inf],[150,Inf],[0,Inf],[0,Inf],[0.0,0.3],    [1,1],    [-1,Inf]]
+regionCuts['LdpBaseline2Pho']          = [[0,Inf],[150,Inf],[0,Inf],[0,Inf],[0.0,0.3],    [2,Inf],  [-1,Inf]]
+regionCuts['HighHtBaseline1Pho']          = [[200,Inf],[150,Inf],[0,Inf],[0,Inf],[0.0,Inf],    [1,1],    [-1,Inf]]
+regionCuts['HighHtBaseline2Pho']          = [[200,Inf],[150,Inf],[0,Inf],[0,Inf],[0.0,Inf],    [2,Inf],  [-1,Inf]]
 
 #################
 # Load in chain #
@@ -115,16 +124,67 @@ for line in lines:
     filelist.append(fname)
     if quickrun: break
 n2process = c.GetEntries()
-nentries = c.GetEntries()
-if quickrun: 
-    n2process = min(30000,n2process)
-    
+if quickrun: n2process = min(300,n2process)
 
 
 print 'will analyze', n2process, 'events'
 c.Show(0)
 
+if mktree:
+    print 'cloning tree'
+    tree_out = c.CloneTree(0)
+    print 'cloned tree'    
+    mDiphoton = np.zeros(1, dtype=float)
+    b_mDiphoton = tree_out.Branch('mDiphoton', mDiphoton, 'mDiphoton/D')
+    mDiphoton[0] = -11.0
+    HardMETPt = np.zeros(1, dtype=float)
+    b_HardMETPt = tree_out.Branch('HardMETPt', HardMETPt, 'HardMETPt/D')
+    HardMETPt[0] = -11.0
+    HardMETPhi = np.zeros(1, dtype=float)
+    b_HardMETPhi = tree_out.Branch('HardMETPhi', HardMETPhi, 'HardMETPhi/D')
+    HardMETPhi[0] = -11.0    
+    NPhotonsLoose = np.zeros(1, dtype=int)
+    b_NPhotonsLoose = tree_out.Branch('NPhotonsLoose', NPhotonsLoose, 'NPhotonsLoose/I')
+    NPhotonsLoose[0] = -11
+    NPhotonsMedium = np.zeros(1, dtype=int)
+    b_NPhotonsMedium = tree_out.Branch('NPhotonsMedium', NPhotonsMedium, 'NPhotonsMedium/I')
+    NPhotonsMedium[0] = -11       
+    
+    jetsRandS = ROOT.std.vector('std::vector<TLorentzVector>')()
+    b_jetsRandS = tree_out.Branch('JetsRandSvec', jetsRandS)
 
+    BTagsDeepCSV = ROOT.std.vector('std::vector<float>')()
+    tree_out.Branch('JetsRandSvec_bJetTagDeepCSVBvsAll', BTagsDeepCSV)
+    HTRandS = ROOT.std.vector('float')()    
+    HardMETPtRandS = ROOT.std.vector('float')()
+    HardMETPhiRandS = ROOT.std.vector('float')()    
+    NJetsRandS = ROOT.std.vector('float')()    
+    BTagsRandS = ROOT.std.vector('int')()
+    NSmearsPerEvent = ROOT.std.vector('int')()    
+    tree_out.Branch('HTRandSvec', HTRandS)
+    tree_out.Branch('HardMETPtRandSvec', HardMETPtRandS)
+    tree_out.Branch('HardMETPhiRandSvec', HardMETPhiRandS)        
+    tree_out.Branch('BTagsRandSvec', BTagsRandS)
+    tree_out.Branch('NJetsRandSvec', NJetsRandS)
+    tree_out.Branch('NSmearsPerEvent', NSmearsPerEvent)
+print 'n(entries) =', n2process
+
+
+varlist = ['Ht','HardMet','NJets','BTags','MinDPhiHardMetJets','NPhotons', 'MetSignificance']
+indexVar = {}
+for ivar, var in enumerate(varlist): indexVar[var] = ivar
+indexVar[''] = -1
+nmain = len(varlist)
+
+def selectionFeatureVector(fvector, regionkey='', omitcuts='', omitcuts_dphi=''):
+    iomits, iomits_dphi = [], []  
+    for cut in omitcuts.split('Vs'): iomits.append(indexVar[cut])
+    for i, feature in enumerate(fvector):
+        if i==nmain: break
+        if i in iomits: continue
+        if not (feature>=regionCuts[regionkey][i][0] and feature<=regionCuts[regionkey][i][1]): 
+            return False
+    return True
 
 if ('Summer16' in fnamekeyword or 'Run2016' in fnamekeyword): 
     templateFileName = 'usefulthings/ResponseFunctionsMC16AllFilters'+nametag[JerUpDown]+'_deepCsv.root'
@@ -153,69 +213,10 @@ templateHtAxis = hHtTemplate.GetXaxis()
 '''
 
 ##Create output file
-infileID = fnamekeyword.split('/')[-1].replace('.root','')+'_part'+str(extended)
+infileID = fnamekeyword.split('/')[-1].replace('.root','')
 newname = 'posterior-'+infileID+'.root'
 fnew = TFile(newname, 'recreate')
 print 'creating', newname
-
-
-if mktree:
-    print 'cloning tree'
-    fnew.mkdir('TreeMaker2')
-    fnew.cd('TreeMaker2/')
-    tree_out = c.CloneTree(0)
-    print 'cloned tree'    
-    mDiphoton = np.zeros(1, dtype=float)
-    b_mDiphoton = tree_out.Branch('mDiphoton', mDiphoton, 'mDiphoton/D')
-    mDiphoton[0] = -11.0
-    HardMETPt = np.zeros(1, dtype=float)
-    b_HardMETPt = tree_out.Branch('HardMETPt', HardMETPt, 'HardMETPt/D')
-    HardMETPt[0] = -11.0
-    HardMETPhi = np.zeros(1, dtype=float)
-    b_HardMETPhi = tree_out.Branch('HardMETPhi', HardMETPhi, 'HardMETPhi/D')
-    HardMETPhi[0] = -11.0    
-    NPhotonsLoose = np.zeros(1, dtype=int)
-    b_NPhotonsLoose = tree_out.Branch('NPhotonsLoose', NPhotonsLoose, 'NPhotonsLoose/I')
-    NPhotonsLoose[0] = -11
-    NPhotonsMedium = np.zeros(1, dtype=int)
-    b_NPhotonsMedium = tree_out.Branch('NPhotonsMedium', NPhotonsMedium, 'NPhotonsMedium/I')
-    NPhotonsMedium[0] = -11
-
-    IsUniqueSeed = np.zeros(1, dtype=int)
-    b_IsUniqueSeed = tree_out.Branch('IsUniqueSeed', IsUniqueSeed, 'IsUniqueSeed/I')
-    IsUniqueSeed[0] = 1
-    
-    jetsRandS = ROOT.std.vector('TLorentzVector')()
-    b_jetsRandS = tree_out.Branch('JetsRandS', jetsRandS)
-
-    jetsRebalanced = ROOT.std.vector('TLorentzVector')()
-    b_jetsRebalanced = tree_out.Branch('JetsRebalanced', jetsRebalanced)
-
-    jetsRebalanced_origIdx = ROOT.std.vector('int')()
-    b_jetsRebalanced_origIdx = tree_out.Branch('JetsRebalanced_origIdx', jetsRebalanced_origIdx)    
-        
-    BTagsDeepCSV = ROOT.std.vector('float')()
-    tree_out.Branch('JetsRandS_bJetTagDeepCSVBvsAll', BTagsDeepCSV)
-
-    jetsRandS_origIdx = ROOT.std.vector('int')()
-    tree_out.Branch('JetsRandS_origIdx', jetsRandS_origIdx)    
-
-    HTRandS = np.zeros(1, dtype=float)
-    HardMETPtRandS = np.zeros(1, dtype=float)
-    HardMETPhiRandS = np.zeros(1, dtype=float)
-    NJetsRandS = np.zeros(1, dtype=int)
-    BTagsRandS = np.zeros(1, dtype=int)
-    NSmearsPerEvent = np.zeros(1, dtype=int)
-    FitSucceed = np.zeros(1, dtype=int)    
-    tree_out.Branch('HTRandS', HTRandS, 'HTRandS/D')
-    tree_out.Branch('HardMETPtRandS', HardMETPtRandS, 'HardMETPtRandS/D')
-    tree_out.Branch('HardMETPhiRandS', HardMETPhiRandS, 'HardMETPhiRandS/D')
-    tree_out.Branch('BTagsRandS', BTagsRandS, 'BTagsRandS/I')
-    tree_out.Branch('NJetsRandS', NJetsRandS, 'NJetsRandS/I')
-    tree_out.Branch('NSmearsPerEvent', NSmearsPerEvent, 'NSmearsPerEvent/I')
-    tree_out.Branch('FitSucceed', FitSucceed, 'FitSucceed/I')    
-    
-print 'n(entries) =', n2process
 
 hHt = TH1F('hHt','hHt',120,0,2500)
 hHt.Sumw2()
@@ -231,42 +232,40 @@ hTotFit.Sumw2()
 
 GleanTemplatesFromFile(ftemplate)#, fprior)
 
-acme_objects = vector('UsefulJet')()
-recophotons_loose = vector('TLorentzVector')()
-recophotons_medium = vector('TLorentzVector')()
-recojets_ = vector('UsefulJet')()
-recojets = vector('UsefulJet')()
-recoelectrons = vector('TLorentzVector')()
-recomuons = vector('TLorentzVector')()
-genjets_ = vector('TLorentzVector')()
+histoStructDict = {}
+for region in regionCuts:
+    for var in varlist:
+        histname = region+'_'+var
+        histoStructDict[histname] = mkHistoStruct(histname, binning)
 
 t0 = time.time()
-for ientry in range((extended-1)*n2process, extended*n2process):
+for ientry in range(n2process):
 
 
     if ientry%printevery==0:
-        print "processing event", ientry, '/', extended*n2process, 'time', time.time()-t0
+        print "processing event", ientry, '/', n2process, 'time', time.time()-t0
 
     if debugmode:
+        #if not ientry>122000: continue
         if ientry in [298]: continue
-    if ientry>nentries: break
+        #if not ientry in [1839, 5348]: continue#,30548,49502]: continue
+        a = 2
     c.GetEntry(ientry)
-    IsUniqueSeed[0] = 1
 
     weight = c.CrossSection
 
+    #if not c.MET>100: continue
     if not passesUniversalSelection(c): continue
-    #if not passesHadronicSusySelection(c): continue
 
 
     
-    acme_objects.clear()
-    recophotons_loose.clear()
-    recophotons_medium.clear()
+    acme_objects = vector('TLorentzVector')()
+    recophotons_loose = vector('TLorentzVector')()
+    recophotons_medium = vector('TLorentzVector')()
         
     #build up the vector of jets using TLorentzVectors; 
     #this is where you have to interface with the input format you're using
-    if not (len(c.Photons)>0 or len(c.Electrons)>0 or len(c.Muons)>0): continue
+    if not len(c.Photons)>0: continue
 
     #idea: use HT to reference prior instead of ST
 
@@ -275,9 +274,8 @@ for ientry in range((extended-1)*n2process, extended*n2process):
         if not bool(c.Photons_fullID[ipho]): continue ##need to BOOL this?
         if not abs(pho.Eta())<2.4: continue
         tlvpho = TLorentzVector()
-        tlvpho.SetPtEtaPhiE(pho.Pt(), pho.Eta(), pho.Phi(), pho.E())  
-        usefulpho = UsefulJet(tlvpho, 0, 0, -1)
-        acme_objects.push_back(usefulpho)
+        tlvpho.SetPtEtaPhiE(pho.Pt(), pho.Eta(), pho.Phi(), pho.E())        
+        acme_objects.push_back(tlvpho)
         #if not c.Photons_genMatched[ipho]: continue
         #if bool(c.Photons_nonPrompt[ipho]): continue
         if bool(c.Photons_hasPixelSeed[ipho]): continue         
@@ -292,63 +290,81 @@ for ientry in range((extended-1)*n2process, extended*n2process):
             print 'Photons_genMatched', c.Photons_genMatched[ipho]
             print 'Photons_nonPrompt', bool(c.Photons_nonPrompt[ipho])
             print 'Photons_pfGammaIsoRhoCorr', c.Photons_pfGammaIsoRhoCorr[ipho]
+        recophotons_medium.push_back(tlvpho)
 
     if useMediumPho: recophotons = recophotons_medium
     else: recophotons = recophotons_loose
 
-    if not len(c.Photons)==recophotons.size():
+    if not len(c.Photons)==recophotons_loose.size():
         #print 'this is important'
         continue
 
     NPhotonsLoose[0] = len(recophotons_loose)
     NPhotonsMedium[0] = len(recophotons_medium)    
+    '''
+    for ipho, pho in enumerate(c.GenParticles):
+        if not pho.Pt()>100: continue #trigger is pho 70
+        if not c.GenParticles_PdgId[ipho]==22: continue
+        if not c.GenParticles_Htatus[ipho]==1: continue
+        if not abs(pho.Eta())<2.4: continue        
+        acme_objects.push_back(pho)				
+        recophotons_loose.push_back(pho)
+    '''
     
-    #if not int(recophotons_loose.size())>0: continue    
+    if not int(recophotons_loose.size())>0: continue
+    #print ientry, 'doing this'
+    #c.Show(ientry)
+    #if c.NJets>8: exit
+    
 
-    recoelectrons.clear()
+    recoelectrons = vector('TLorentzVector')()
+    #build up the vector of jets using TLorentzVectors; 
+    #this is where you have to interface with the input format you're using
     for iel, el in enumerate(c.Electrons):
-        if not el.Pt()>20: continue
+        if not el.Pt()>10: continue
         if not c.Electrons_mediumID[iel]: continue
         if not c.Electrons_passIso[iel]: continue        
         tlvel = TLorentzVector()
         tlvel.SetPtEtaPhiE(el.Pt(), el.Eta(), el.Phi(), el.Pt()*TMath.CosH(el.Eta()))
         if debugmode:
             print ientry, 'acme electron', el.Pt()		
-        usefulele = UsefulJet(tlvel, 0, 0, -1)
-        acme_objects.push_back(usefulele)		
+        #acme_objects.push_back(tlvel)		
         if not abs(el.Eta())<2.4: continue		
         recoelectrons.push_back(tlvel)
-    #if not len(recoelectrons)==0: continue
+    if not len(recoelectrons)==0: continue    
 
-    recomuons.clear()
+    recomuons = vector('TLorentzVector')()
+    #build up the vector of jets using TLorentzVectors; 
+    #this is where you have to interface with the input format you're using
     for imu, mu in enumerate(c.Muons):
-        if not mu.Pt()>20: continue
+        if not mu.Pt()>10: continue
         if not c.Muons_mediumID[imu]: continue
         if not c.Muons_passIso[imu]: continue
         tlvmu = TLorentzVector()
         tlvmu.SetPtEtaPhiE(mu.Pt(), mu.Eta(), mu.Phi(), mu.Pt()*TMath.CosH(mu.Eta()))
         if debugmode:
             print ientry, 'acme muon', mu.Pt()				
-        usefulmu = UsefulJet(tlvmu, 0, 0, -1)
-        acme_objects.push_back(usefulmu)			
+        #acme_objects.push_back(tlvmu)			
         if not abs(mu.Eta())<2.4: continue		
         recomuons.push_back(tlvmu)		
-    #if not len(recomuons)==0: continue        		
+    if not len(recomuons)==0: continue        		
 
     AcmeVector = TLorentzVector()
     AcmeVector.SetPxPyPzE(0,0,0,0)
-    for obj in acme_objects: AcmeVector+=obj.tlv		
+    for obj in acme_objects: AcmeVector+=obj		
 
     _Templates_.AcmeVector = AcmeVector	
-    
 
-    #recojets_.clear()
+
+    if cleanrecluster: recojets_ = CreateUsefulJetVector(c.Jetsclean, c.Jetsclean_bJetTagDeepCSVBvsAll)
+    else: recojets_ = CreateUsefulJetVector(c.Jets, c.Jets_bJetTagDeepCSVBvsAll)
+
+
+
     recojets_.clear()
     for ijet, jet in enumerate(c.Jets):
         if not (jet.Pt()>2 and abs(jet.Eta())<5.0): continue
-        recojets_.push_back(UsefulJet(jet, c.Jets_bJetTagDeepCSVBvsAll[ijet], float(int(bool(c.Jets_ID[ijet]))), ijet))
-
-        
+        recojets_.push_back(UsefulJet(jet, c.Jets_bJetTagDeepCSVBvsAll[ijet], float(int(bool(c.Jets_ID[ijet])))))
         if sayalot and jet.Pt()>AnHardMetJetPtCut:
             print 'ijet original', ijet, 'pt, eta, phi', jet.Pt(), jet.Eta(), jet.Phi(), 'Jets_bJetTagDeepCSVBvsAll', c.Jets_bJetTagDeepCSVBvsAll[ijet], 'Jets_bDiscriminatorCSV', c.Jets_bDiscriminatorCSV[ijet], 'Jets_chargedEmEnergyFraction', c.Jets_chargedEmEnergyFraction[ijet], 'Jets_chargedHadronEnergyFraction', c.Jets_chargedHadronEnergyFraction[ijet], 'Jets_chargedMultiplicity', c.Jets_chargedMultiplicity[ijet], ', Jets_multiplicity', c.Jets_multiplicity[ijet], ', Jets_partonFlavor', c.Jets_partonFlavor[ijet] , ', Jets_photonEnergyFraction', c.Jets_photonEnergyFraction[ijet] , ', Jets_photonMultiplicity', c.Jets_photonMultiplicity[ijet], 'Jets_hadronFlavor', c.Jets_hadronFlavor[ijet], 'Jets_hadronFlavor', c.Jets_hadronFlavor[ijet], 'Jets_ID', bool(c.Jets_ID[ijet])
 
@@ -361,9 +377,11 @@ for ientry in range((extended-1)*n2process, extended*n2process):
             recojets.push_back(UsefulJet(jet, c.Jets_bJetTagDeepCSVBvsAll[ijet], jet.Pt()))  
 
 
-            
     ##declare empty vector of UsefulJets (in c++, std::vector<UsefulJet>):
-    recojets.clear()
+    recojets = vector('UsefulJet')()
+    #build up the vector of jets using TLorentzVectors; 
+    #this is where you have to interface with the input format you're using
+
     nMatchedAcmeOuterPairs = 0
     nMatchedAcmeInnerPairs = 0
     passesJetId = True
@@ -373,40 +391,42 @@ for ientry in range((extended-1)*n2process, extended*n2process):
         closestAcme = getClosestObject(acme_objects, jet, 0.1)
         if jet.DeltaR(closestAcme)<0.6:
             nMatchedAcmeOuterPairs+=1
-            if jet.DeltaR(closestAcme)<0.3:
-                closestAcme.originalIdx = jet.originalIdx                
+            if jet.DeltaR(closestAcme)<0.2:
                 nMatchedAcmeInnerPairs+=1
-                if sayalot: print 'skipping reco jet with pT, eta', jet.Pt(), jet.Eta(), jet.DeltaR(acme_objects[0].tlv)
+                if sayalot: print 'skipping reco jet with pT, eta', jet.Pt(), jet.Eta(), jet.DeltaR(acme_objects[0])
                 continue
-        if jet.Pt()>AnHardMetJetPtCut and jet.JetId()<0.5: 
+        #    #jet.tlv-=closestAcme
+        if jet.Pt()>AnHardMetJetPtCut and jet.OriginalPt()<0.5: 
             passesJetId = False
             print 'failed jet id'
             break
-        ujet = UsefulJet(jet.tlv, jet.btagscore, jet.jetId, jet.originalIdx)
+        ujet = UsefulJet(jet.tlv, jet.btagscore)        
         recojets.push_back(ujet)
 
     if not passesJetId: continue
-    
-    shouldskipevent = False
-    if not nMatchedAcmeOuterPairs==nMatchedAcmeInnerPairs: shouldskipevent = True    
-    if not nMatchedAcmeInnerPairs==len(acme_objects): shouldskipevent = True
-    if shouldskipevent: 
-        print ientry, 'acme mismatch'
-        continue
-        
+    if cleanrecluster:
+        if not nMatchedAcmeJetParis==0: continue
+    else:
+        if not nMatchedAcmeInnerPairs==len(acme_objects): continue
+        if not nMatchedAcmeOuterPairs==nMatchedAcmeInnerPairs: continue
 
-    genjets_.clear()
+    genjets_ = vector('TLorentzVector')()
+    #build up the vector of jets using TLorentzVectors; 
+    #this is where you have to interface with the input format you're using (treemaker)
     for ijet, jet in enumerate(c.GenJets):
         #if not jet.Pt()>15: continue
         #if not abs(jet.Eta())<5: continue
-        ujet = UsefulJet(jet, 0, 0, -1)
-        closestAcme = getClosestObject(acme_objects, ujet, 0.1)
-        if ujet.DeltaR(closestAcme)<0.1: 
-            if sayalot: print 'ueberspringen jet mit pT, eta', tlvjet.Pt(), tlvjet.Eta(), '(',tlvjet.DeltaR(acme_objects[0]),')'
+        tlvjet = TLorentzVector()
+        tlvjet.SetPtEtaPhiE(jet.Pt(), jet.Eta(), jet.Phi(), jet.Pt()*TMath.CosH(jet.Eta()))
+        closestAcme = getClosestObject(acme_objects, tlvjet, 0.1)
+        if tlvjet.DeltaR(closestAcme)<0.1: 
+            if sayalot: print 'ueberspringen jet with pT, eta', tlvjet.Pt(), tlvjet.Eta(), '(',tlvjet.DeltaR(acme_objects[0]),')'
+            #tlvjet-=closestAcme
             continue
-        genjets_.push_back(ujet.tlv)
+        genjets_.push_back(tlvjet)
     gHt = getHt(genjets_,AnHardMetJetPtCut)
     gHt = gHt
+    #for obj in acme_objects: gHt+=obj.Pt()
     fillth1(hHt, gHt,1)
 
     matchedBtagscoreVec = createMatchedBtagscoreVector(genjets_, recojets)
@@ -416,10 +436,10 @@ for ientry in range((extended-1)*n2process, extended*n2process):
     MetVec = TLorentzVector()
     MetVec.SetPtEtaPhiE(c.MET,0,c.METPhi,c.MET)
 
-    #CleanMetVec = TLorentzVector()
-    #CleanMetVec.SetPtEtaPhiE(c.METclean,0,c.METPhiclean,c.METclean)
-    #redirtiedMetVec = CleanMetVec.Clone()
-    #redirtiedMetVec-=AcmeVector 
+    CleanMetVec = TLorentzVector()
+    CleanMetVec.SetPtEtaPhiE(c.METclean,0,c.METPhiclean,c.METclean)
+    redirtiedMetVec = CleanMetVec.Clone()
+    redirtiedMetVec-=AcmeVector 
 
     ##observed histogram
     tHt = getHt(recojets,AnHardMetJetPtCut)
@@ -427,18 +447,55 @@ for ientry in range((extended-1)*n2process, extended*n2process):
     #for obj in acme_objects: tHt+=obj.Pt()
     tHardMhtVec = getHardMet(recojets,AnHardMetJetPtCut, mhtjetetacut)
     tHardMetVec = tHardMhtVec.Clone()
-    tHardMetVec-=AcmeVector # this still needed because the reco-jets don't contain the acme_objects
+    tHardMetVec-=AcmeVector
 
-    
+    softthing = TLorentzVector() # consider only including soft thing in MET if softhing>30 GeV
+    softthing.SetPtEtaPhiE(c.MET, 0, -c.METPhi, c.MET)
+    softthing+=tHardMetVec
+    softthing_u = UsefulJet(softthing)
+    #recojets.push_back(softthing_u)
     tHardMetPt, tHardMetPhi = tHardMetVec.Pt(), tHardMetVec.Phi()
     HardMETPt[0], HardMETPhi[0] = tHardMetPt, tHardMetPhi
     
-    #if  not abs(MetVec.Pt()-tHardMetVec.Pt())<60: continue
-    
+    if  not abs(MetVec.Pt()-tHardMetVec.Pt())<60:
+            print ientry, 'met/mht consistency', abs(MetVec.Pt()-tHardMetVec.Pt())
+            continue
     tHardMhtPt, tHardMhtPhi = tHardMhtVec.Pt(), tHardMhtVec.Phi()
+
+
+    if sayalot:
+        print 'going to play with this photon'
+        pho = recophotons[0]
+        print 'pho pt, eta, phi', pho.Pt(), pho.Eta(), pho.Phi()
+        print 'MHT = ', c.MHT
+        mht = TLorentzVector()
+        mht.SetPtEtaPhiE(0,0,0,0)
+        for jet in c.Jets: 
+            if jet.Pt()>30 and abs(jet.Eta())<5.0: mht-=jet
+        print 'MHT-homegrown', mht.Pt()
+        print 'MHT-clean', c.MHTclean
+        mhtagain = mkmet(c.MHTclean, c.MHTPhiclean)
+        mhtagain-=pho
+        print 'MHT-clean-dirtied', mhtagain.Pt()
+        print 'len(c.Photons)', len(c.Photons)
+
+
+    if cleanrecluster:
+        mhtagain = mkmet(c.MHTclean, c.MHTPhiclean)
+        mhtagain-=AcmeVector
+        tHardMetPt, tHardMetPhi = mhtagain.Pt(), mhtagain.Phi()
+        if c.NJets-c.NJetsclean==len(acme_objects): tHardMetPt = mhtagain.Clone()
+        tHardMetPt, tHardMetPhi = tHardMetPt.Pt(), tHardMetPt.Phi()
     
     mindphi = 4
     for jet in recojets[:4]: mindphi = min(mindphi, abs(jet.DeltaPhi(tHardMetVec)))
+
+
+    #met_consistency = abs(c.MET-tHardMetPt)/tHardMetPt
+    #if not met_consistency<0.5: 
+    #    print 'throwing away this event on grounds of suspicion', tHardMhtPt
+    #    continue
+    #print 'accepting', tHardMhtPt
 
     if tHt>0: tMetSignificance = tHardMetPt/TMath.Sqrt(tHt)
     else: tMetSignificance = 99
@@ -452,68 +509,76 @@ for ientry in range((extended-1)*n2process, extended*n2process):
 
     if tHardMetPt>met4skim: 
         print ientry, 'fv', fv
-        
+
+    if False:
+     for regionkey in regionCuts:
+        for ivar, varname in enumerate(varlist):
+            hname = regionkey+'_'+varname
+            if selectionFeatureVector(fv,regionkey,varname,''): 
+                fillth1(histoStructDict[hname].Observed, fv[ivar], weight)
+
     fitsucceed = RebalanceJets(recojets)
     rebalancedJets = _Templates_.dynamicJets
-
-                  
+    #else:
+    #	fitsucceed = True
+    #	rebalancedJets = recojets
     mHt = getHt(rebalancedJets,AnHardMetJetPtCut)
     mHt = mHt
-    for obj in acme_objects: mHt+=obj.Pt()
+    #for obj in acme_objects: mHt+=obj.Pt()
     mHardMetVec = getHardMet(rebalancedJets,AnHardMetJetPtCut, mhtjetetacut)
-    mHardMetVec-=AcmeVector # this is now done because the acme_objects were stuck back into the reblanced jets
+    mHardMetVec-=AcmeVector
     mHardMetPt, mHardMetPhi = mHardMetVec.Pt(), mHardMetVec.Phi()
     if mHt>0: mMetSignificance = mHardMetPt/TMath.Sqrt(mHt)
     else: mMetSignificance = 8	
 
     mNJets = countJets(rebalancedJets,AnHardMetJetPtCut)
-    #for obj in acme_objects: 
-    #    if obj.Pt()>30 and abs(obj.Eta())<2.4:
-    #        mNJets+=1
-        
     mBTags = countBJets(rebalancedJets,AnHardMetJetPtCut)###
 
+    #hope = (fitsucceed and mHardMetPt<rebalancedMetCut)# mHardMetPt>min(mHt/2,180):# was 160
+    #hope = (fitsucceed and mSignificance<rebalancedSignificanceCut)# mHardMetPt>min(mHt/2,180):# was 160
+    hope = (fitsucceed and mHardMetPt<rebalancedMetCut)# mHardMetPt>min(mHt/2,180):# was 160	
 
-    fitsucceed = (fitsucceed and mHardMetPt<rebalancedMetCut)# mHardMetPt>min(mHt/2,180):# was 160	
-
-    #redoneMET = redoMET(MetVec,recojets,rebalancedJets)
-    #mMetPt,mMetPhi = redoneMET.Pt(), redoneMET.Phi()
+    redoneMET = redoMET(MetVec,recojets,rebalancedJets)
+    mMetPt,mMetPhi = redoneMET.Pt(), redoneMET.Phi()
     mindphi = 4
     for jet in rebalancedJets[:4]: mindphi = min(mindphi, abs(jet.DeltaPhi(mHardMetVec)))
     fv = [mHt,mHardMetPt,mNJets,mBTags,mindphi, int(recophotons.size()),mMetSignificance]
+    
+    if False:
+     for regionkey in regionCuts:      
+        for ivar, varname in enumerate(varlist):
+            hname = regionkey+'_'+varname
+            if selectionFeatureVector(fv,regionkey,varname,''): 
+                fillth1(histoStructDict[hname].Rebalanced, fv[ivar],weight)
 
     fillth1(hTotFit, fv[3], weight)
 
-    if fitsucceed: fillth1(hPassFit, fv[3], weight)
+    if hope: fillth1(hPassFit, fv[3], weight)
 
     nsmears = 20*bootupfactor
     weight = c.puWeight * c.CrossSection / nsmears
 
     if mktree:
         jetsRandS.clear()
-        jetsRandS_origIdx.clear()
         BTagsDeepCSV.clear()
-        jetsRebalanced.clear()
-        HTRandS[0] = 0
-        HardMETPtRandS[0] = 0
-        HardMETPhiRandS[0] = 0
-        NJetsRandS[0] = 0
-        BTagsRandS[0] = 0
-        NSmearsPerEvent[0] = 0
+        jetsRandS.push_back(ROOT.std.vector('TLorentzVector')())
+        BTagsDeepCSV.push_back(ROOT.std.vector('float')())
+        HTRandS.clear()
+        HardMETPtRandS.clear()
+        NJetsRandS.clear()
+        BTagsRandS.clear()
+        NSmearsPerEvent.clear()         
+        worthsaving = False
     for i in range(nsmears):
 
-        if (not fitsucceed) and IsUniqueSeed[0] == 0: 
-            tree_out.Fill()
-            break
+        if not hope: break
 
         RplusSJets = smearJets(rebalancedJets,99+_Templates_.nparams)
-        for acme in acme_objects:
-            RplusSJets.push_back(acme)        
         rpsHt = getHt(RplusSJets,AnHardMetJetPtCut)
         rpsHt = rpsHt
         #for obj in acme_objects: rpsHt+=obj.Pt()
         rpsHardMetVec = getHardMet(RplusSJets,AnHardMetJetPtCut, mhtjetetacut)
-        #rpsHardMetVec-=AcmeVector # this is now done because the acme_objects were stuck back into the R&S jets
+        rpsHardMetVec-=AcmeVector
         rpsHardMetPt, rpsHardMetPhi = rpsHardMetVec.Pt(), rpsHardMetVec.Phi()
         if rpsHt>0: rpsMetSignificance = rpsHardMetPt/TMath.Sqrt(rpsHt)
         else: rpsMetSignificance = 8			
@@ -522,32 +587,31 @@ for ientry in range((extended-1)*n2process, extended*n2process):
         mindphi = 4
         for jet in RplusSJets[:4]: mindphi = min(mindphi, abs(jet.DeltaPhi(rpsHardMetVec)))
         fv = [rpsHt,rpsHardMetPt,rpsNJets,rpsBTags,mindphi, int(recophotons.size()),rpsMetSignificance]
-        
+        if fv[1]>met4skim: worthsaving = True
+        #print i, 'of', nsmears, fv
+
+        if False:        
+         for regionkey in regionCuts:     
+            for ivar, varname in enumerate(varlist):
+                hname = regionkey+'_'+varname
+                if selectionFeatureVector(fv,regionkey,varname,''):
+                    fillth1(histoStructDict[hname].RplusS, fv[ivar],weight)
         if mktree:
-            if fv[1]>met4skim or tHardMetPt>met4skim:
+            if fv[1]>met4skim:
                 for ijet, jet in enumerate(RplusSJets):
-                    jetsRandS.push_back(jet.tlv)
-                    BTagsDeepCSV.push_back(jet.btagscore)
-                    jetsRandS_origIdx.push_back(jet.OriginalIdx())
-                for ijet, jet in enumerate(rebalancedJets):
-                    jetsRebalanced.push_back(jet.tlv)
-                    jetsRebalanced_origIdx.push_back(jet.OriginalIdx())
-                HTRandS[0] = fv[0]
-                HardMETPtRandS[0] = fv[1]
-                HardMETPhiRandS[0] = rpsHardMetPhi
-                NJetsRandS[0] = fv[2]
-                BTagsRandS[0] = fv[3]
-                NSmearsPerEvent[0] = nsmears   
-                FitSucceed[0] = fitsucceed             
-                tree_out.Fill()
-                IsUniqueSeed[0] = 0
+                    jetsRandS[-1].push_back(jet.tlv)
+                    BTagsDeepCSV[-1].push_back(jet.btagscore)
+                HTRandS.push_back(fv[0])
+                HardMETPtRandS.push_back(fv[1])
+                NJetsRandS.push_back(fv[2])
+                BTagsRandS.push_back(fv[3])
+                NSmearsPerEvent.push_back(nsmears)
+    if mktree:
+        if tHardMetPt>met4skim or worthsaving:
+            tree_out.Fill()
 
-    if isdata: continue
-
-    continue
-
-    ##gen smearing studies and so forth
-    genMetVec = mkmet(c.GenMET, c.GenMETPhi)    
+    if isdata: continue    
+    genMetVec = mkmet(c.GenMET, c.GenMETPhi)
     weight = c.CrossSection
 
     gHt = getHt(genjets,AnHardMetJetPtCut)
@@ -562,7 +626,6 @@ for ientry in range((extended-1)*n2process, extended*n2process):
     if gHt>0: gMetSignificance = gHardMetPt/TMath.Sqrt(gHt)
     else: gMetSignificance = 8	
 
-        
     ###Delphes filter, because I think Delphes is mis-computing its own gen MET
     if gHardMetPt>80 and False: 
         fillth1(hGenMetGenHardMetRatio,abs(gHardMetPt-genMetVec.Pt())/gHardMetPt)
@@ -577,11 +640,73 @@ for ientry in range((extended-1)*n2process, extended*n2process):
     gNJets = countJets(genjets,AnHardMetJetPtCut)
     gBTags = countBJets(genjets,AnHardMetJetPtCut)
 
-    fv = [gHt,gHardMetPt,gNJets,gBTags,mindphi, int(recophotons.size()),gMetSignificance]	
 
-        
+    if debugmode:
+        #c.Show(ientry)
+        print 'missingET', c.MET
+        print 'gen missingET', genMetVec.Pt()
+        print 'genHardMet', gHardMetVec.Pt(), gHardMetVec.Phi()		
+        print 'genjets'
+        for ijet, jet in enumerate(genjets):
+            print ijet, jet.Pt(), jet.Eta(), jet.Phi()
+            matchedreco = calcMinDr(recojets, jet, 0.01)
+            print '....matched reco pt', matchedreco.Pt(), matchedreco.Eta(), matchedreco.Phi(), 'dr', matchedreco.DeltaR(jet.tlv)            
+        print 'recoHardMet', tHardMetVec.Pt(), tHardMetVec.Phi()
+        print 'recoHardMetUppy', (tHardMetVec+acme_objects[0]).Pt()
+        print 'recoHardMetDowny', (tHardMetVec-acme_objects[0]).Pt()        
+        print 'recojets:'
+        for ijet, jet in enumerate(recojets):
+            print ijet, jet.Pt(), jet.Eta(), jet.Phi(), 'btag=', jet.btagscore
+            matchedgen = calcMinDr(genjets, jet, 0.01)
+            print '....matchedgenjet pt', matchedgen.Pt(), matchedgen.Eta(), matchedgen.Phi(), 'dr', matchedgen.DeltaR(jet.tlv)
+            matchedacme = calcMinDr(acme_objects, jet, 0.01)
+            print '....matchedacme dr',  matchedacme
+
+        print 'acme_objects'
+        for ijet, jet in enumerate(acme_objects):
+            print ijet, jet.Pt(), jet.Eta(), jet.Phi()
+
+
+    fv = [gHt,gHardMetPt,gNJets,gBTags,mindphi, int(recophotons.size()),gMetSignificance]	
+    if False:    
+     for regionkey in regionCuts:
+        for ivar, varname in enumerate(varlist):
+            hname = regionkey+'_'+varname
+            if selectionFeatureVector(fv,regionkey,varname,''): 
+                fillth1(histoStructDict[hname].Gen, fv[ivar],weight)
+
+    #Gen-smearing
+    nsmears = 3
+    if isdata: weight = 1.0*prescaleweight/nsmears    
+    else: weight = c.CrossSection / nsmears
+    for i in range(nsmears):
+        if not (gHardMetPt<rebalancedMetCut): break
+        smearedJets = smearJets(genjets,9999)
+        #smearedJets,csvSmearedJets = smearJets(genjets,matchedCsvVec,_Templates_.ResponseFunctions,_Templates_.hEtaTemplate,_Templates_.hPtTemplate,999)
+        mHt = getHt(smearedJets,AnHardMetJetPtCut)
+        mHt = mHt
+        #for obj in acme_objects: mHt+=obj.Pt()
+        mHardMetVec = getHardMet(smearedJets,AnHardMetJetPtCut, mhtjetetacut)
+        mHardMetVec-=AcmeVector
+        mHardMetPt, mHardMetPhi = mHardMetVec.Pt(), mHardMetVec.Phi()
+        if mHt>0: mMetSignificance = mHardMetPt/TMath.Sqrt(mHt)
+        else: mMetSignificance = 8		
+        mNJets = countJets(smearedJets,AnHardMetJetPtCut)
+        mBTags = countBJets(smearedJets,AnHardMetJetPtCut)
+        redoneMET = redoMET(genMetVec, genjets, smearedJets)
+        mMetPt, mMetPhi = redoneMET.Pt(), redoneMET.Phi()
+        mindphi = 4
+        for jet in smearedJets[:4]: mindphi = min(mindphi, abs(jet.DeltaPhi(mHardMetVec)))	
+        fv = [mHt,mHardMetPt,mNJets,mBTags,mindphi, int(recophotons.size()),mMetSignificance]
+
+        if False:
+         for regionkey in regionCuts:
+            for ivar, varname in enumerate(varlist):
+                hname = regionkey+'_'+varname
+                if selectionFeatureVector(fv,regionkey,varname,''): 
+                    fillth1(histoStructDict[hname].GenSmeared, fv[ivar],weight)
+
 fnew.cd()
-fnew.cd('../')
 #writeHistoStruct(histoStructDict)
 #hGenMetGenHardMetRatio.Write()
 hHt.Write()
@@ -590,7 +715,8 @@ hHtWeighted.Write()
 hPassFit.Write()
 hTotFit.Write()
 if mktree:
-    fnew.cd('TreeMaker2')
+    fnew.mkdir('TreeMaker2')
+    fnew.cd('TreeMaker2/')
     tree_out.Write()
 print 'just created', fnew.GetName()
 fnew.Close()

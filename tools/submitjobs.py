@@ -10,7 +10,11 @@ parser.add_argument("-quickrun", "--quickrun", type=bool, default=False,help="Qu
 parser.add_argument("-forcetemplates", "--forcetemplates", type=str, default=False,help="you can use this to override the template choice")
 parser.add_argument("-hemcut", "--hemcut", type=str, default='',help="you can use this to override the template choice")
 parser.add_argument("-branchonly", "--branchonly", type=bool, default=False,help="skip rebalancing and smearing")
+parser.add_argument("-extended", "--extended", type=int, default=1,help="short run")
+parser.add_argument("-deactivateAcme", "--deactivateAcme", type=str, default='False')
 args = parser.parse_args()
+deactivateAcme = args.deactivateAcme=='True'
+extended = args.extended
 branchonly = args.branchonly
 hemcut = args.hemcut
 fnamekeyword = args.fnamekeyword.strip()
@@ -47,6 +51,7 @@ else:
     
     
 cwd = os.getcwd()
+acme = bool(deactivateAcme)
 
 fnamefilename = 'usefulthings/filelistV'+ntupleV+'.txt'
 print 'fnamefilename', fnamefilename
@@ -64,7 +69,7 @@ def main():
         job = analyzer.split('/')[-1].replace('.py','').replace('.jdl','')+'-'+fname.strip()+'Jer'+JerUpDown
         #from utils import pause
         #pause()
-        job = job.replace('.root','')
+        job = job.replace('.root','')+'_part'+str(extended)+'_acme'+args.deactivateAcme
         job = job.replace('.root',Bootstrap+'.root')     
         #print 'creating jobs:',job
         newjdl = open('jobs/'+job+'.jdl','w')
@@ -110,8 +115,15 @@ cd CMSSW_10_1_0/src
 eval `scramv1 runtime -sh`
 cd ${_CONDOR_SCRATCH_DIR}
 echo $PWD
+export x509userproxy=/uscms/home/sbein/x509up_u47534
 ls
 python ANALYZER --fnamekeyword FNAMEKEYWORD MOREARGS
+
+for f in *.root
+do 
+   xrdcp "$f" root://cmseos.fnal.gov//store/user/lpcsusyphotons/TreeMakerRandS/
+done
+rm *.root
 '''
 
 main()
